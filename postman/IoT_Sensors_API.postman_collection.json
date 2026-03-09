@@ -1,0 +1,320 @@
+{
+	"info": {
+		"_postman_id": "a1-iot-sensors-collection",
+		"name": "IoT Sensors API (A1)",
+		"description": "API collection for testing IoT Sensor microservices - Python (FastAPI) on port 8000 and Go (Gin) on port 8080.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{API_TOKEN}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "API_TOKEN",
+			"value": "your-secret-token",
+			"type": "string"
+		},
+		{
+			"key": "PYTHON_BASE_URL",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "GO_BASE_URL",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "sensor_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Python Service (FastAPI)",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{PYTHON_BASE_URL}}/health",
+							"host": ["{{PYTHON_BASE_URL}}"],
+							"path": ["health"]
+						},
+						"description": "Check if the Python service is healthy"
+					},
+					"response": []
+				},
+				{
+					"name": "List All Sensors",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{PYTHON_BASE_URL}}/sensors",
+							"host": ["{{PYTHON_BASE_URL}}"],
+							"path": ["sensors"]
+						},
+						"description": "Get all sensors from the database"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Sensor by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{PYTHON_BASE_URL}}/sensors/{{sensor_id}}",
+							"host": ["{{PYTHON_BASE_URL}}"],
+							"path": ["sensors", "{{sensor_id}}"]
+						},
+						"description": "Get a specific sensor by its ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Sensor",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('sensor_id', jsonData.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test Temperature Sensor\",\n    \"type\": \"temperature\",\n    \"location\": \"Living Room\",\n    \"value\": 72.5,\n    \"unit\": \"F\",\n    \"status\": \"active\"\n}"
+						},
+						"url": {
+							"raw": "{{PYTHON_BASE_URL}}/sensors",
+							"host": ["{{PYTHON_BASE_URL}}"],
+							"path": ["sensors"]
+						},
+						"description": "Create a new sensor. The created sensor's ID is automatically saved for subsequent requests."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Sensor",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Sensor Name\",\n    \"value\": 75.0,\n    \"status\": \"active\"\n}"
+						},
+						"url": {
+							"raw": "{{PYTHON_BASE_URL}}/sensors/{{sensor_id}}",
+							"host": ["{{PYTHON_BASE_URL}}"],
+							"path": ["sensors", "{{sensor_id}}"]
+						},
+						"description": "Update an existing sensor by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Sensor",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{PYTHON_BASE_URL}}/sensors/{{sensor_id}}",
+							"host": ["{{PYTHON_BASE_URL}}"],
+							"path": ["sensors", "{{sensor_id}}"]
+						},
+						"description": "Delete a sensor by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Unauthorized Request (No Token)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{PYTHON_BASE_URL}}/sensors",
+							"host": ["{{PYTHON_BASE_URL}}"],
+							"path": ["sensors"]
+						},
+						"description": "Test that requests without Bearer token return 401 Unauthorized"
+					},
+					"response": []
+				}
+			],
+			"description": "Requests for the Python (FastAPI) service running on port 8000"
+		},
+		{
+			"name": "Go Service (Gin)",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{GO_BASE_URL}}/health",
+							"host": ["{{GO_BASE_URL}}"],
+							"path": ["health"]
+						},
+						"description": "Check if the Go service is healthy"
+					},
+					"response": []
+				},
+				{
+					"name": "List All Sensors",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{GO_BASE_URL}}/sensors",
+							"host": ["{{GO_BASE_URL}}"],
+							"path": ["sensors"]
+						},
+						"description": "Get all sensors from the database"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Sensor by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{GO_BASE_URL}}/sensors/{{sensor_id}}",
+							"host": ["{{GO_BASE_URL}}"],
+							"path": ["sensors", "{{sensor_id}}"]
+						},
+						"description": "Get a specific sensor by its ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Sensor",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('sensor_id', jsonData.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test Motion Sensor\",\n    \"type\": \"motion\",\n    \"location\": \"Front Door\",\n    \"value\": 1,\n    \"unit\": \"boolean\",\n    \"status\": \"active\"\n}"
+						},
+						"url": {
+							"raw": "{{GO_BASE_URL}}/sensors",
+							"host": ["{{GO_BASE_URL}}"],
+							"path": ["sensors"]
+						},
+						"description": "Create a new sensor. The created sensor's ID is automatically saved for subsequent requests."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Sensor",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Motion Sensor\",\n    \"value\": 0,\n    \"status\": \"inactive\"\n}"
+						},
+						"url": {
+							"raw": "{{GO_BASE_URL}}/sensors/{{sensor_id}}",
+							"host": ["{{GO_BASE_URL}}"],
+							"path": ["sensors", "{{sensor_id}}"]
+						},
+						"description": "Update an existing sensor by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Sensor",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{GO_BASE_URL}}/sensors/{{sensor_id}}",
+							"host": ["{{GO_BASE_URL}}"],
+							"path": ["sensors", "{{sensor_id}}"]
+						},
+						"description": "Delete a sensor by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Unauthorized Request (No Token)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{GO_BASE_URL}}/sensors",
+							"host": ["{{GO_BASE_URL}}"],
+							"path": ["sensors"]
+						},
+						"description": "Test that requests without Bearer token return 401 Unauthorized"
+					},
+					"response": []
+				}
+			],
+			"description": "Requests for the Go (Gin) service running on port 8080"
+		}
+	]
+}

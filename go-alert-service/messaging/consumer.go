@@ -1,0 +1,102 @@
+package messaging
+
+import (
+	"encoding/json"
+	"log/slog"
+	"time"
+
+	amqp "github.com/rabbitmq/amqp091-go"
+)
+
+// SensorEvent represents a sensor.updated event from RabbitMQ.
+type SensorEvent struct {
+	Event     string  `json:"event"`
+	SensorID  string  `json:"sensor_id"`
+	Value     float64 `json:"value"`
+	Type      string  `json:"type"`
+	Unit      string  `json:"unit"`
+	Timestamp string  `json:"timestamp"`
+}
+
+// AlertConsumer consumes sensor.updated events from RabbitMQ.
+type AlertConsumer struct {
+	url      string
+	callback func(SensorEvent)
+}
+
+// NewAlertConsumer creates a new alert consumer.
+func NewAlertConsumer(url string, callback func(SensorEvent)) *AlertConsumer {
+	return &AlertConsumer{url: url, callback: callback}
+}
+
+// Start begins consuming in a background goroutine with reconnect logic.
+func (c *AlertConsumer) Start() {
+	go c.consumeLoop()
+	slog.Info("Alert consumer started")
+}
+
+func (c *AlertConsumer) consumeLoop() {
+	for {
+		err := c.consume()
+		if err != nil {
+			slog.Error("Consumer connection lost — reconnecting in 5s", "error", err.Error())
+			time.Sleep(5 * time.Second)
+		}
+	}
+}
+
+func (c *AlertConsumer) consume() error {
+	conn, err := amqp.Dial(c.url)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		return err
+	}
+	defer ch.Close()
+
+	err = ch.ExchangeDeclare("sensor_events", "fanout", true, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	q, err := ch.QueueDeclare("alert_service_go", true, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	err = ch.QueueBind(q.Name, "", "sensor_events", false, nil)
+	if err != nil {
+		return err
+	}
+
+	// autoAck=false: ack only after successful processing so messages are
+	// not lost if the evaluator crashes mid-flight.
+	msgs, err := ch.Consume(q.Name, "", false, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	slog.Info("Connected to RabbitMQ, waiting for sensor events")
+
+	for msg := range msgs {
+		var event SensorEvent
+		if err := json.Unmarshal(msg.Body, &event); err != nil {
+			slog.Warn("Received invalid JSON message", "error", err.Error())
+			// Nack without requeue — malformed messages cannot be retried usefully.
+			msg.Nack(false, false)
+			continue
+		}
+		if event.Event == "sensor.updated" {
+			slog.Info("Received sensor.updated event",
+				"sensor_id", event.SensorID, "value", event.Value)
+			c.callback(event)
+		}
+		msg.Ack(false)
+	}
+
+	return nil
+}

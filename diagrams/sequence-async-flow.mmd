@@ -1,0 +1,25 @@
+sequenceDiagram
+    actor Client
+    participant GoSvc as Go Sensor Service
+    participant RMQ as RabbitMQ
+    participant GoAlert as Go Alert Service
+    participant AlertDB as alerts-go.db
+
+    Client->>+GoSvc: PUT /sensors/sensor-001\nAuthorization: Bearer token
+    GoSvc->>GoSvc: Update sensor in DB
+    GoSvc-->>-Client: 200 OK {sensor}
+
+    GoSvc-)RMQ: Publish sensor.updated\n{sensor_id, value, type, unit}
+
+    Note over GoSvc,RMQ: Fire-and-forget (goroutine)\nHTTP response already sent
+
+    RMQ-)GoAlert: Deliver sensor.updated event
+
+    GoAlert->>GoAlert: Load active rules for sensor-001
+    loop For each matching rule
+        GoAlert->>GoAlert: Evaluate value OP threshold
+        alt Threshold crossed
+            GoAlert->>AlertDB: INSERT triggered_alert
+            GoAlert->>GoAlert: Log alert triggered
+        end
+    end

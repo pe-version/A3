@@ -1,0 +1,454 @@
+openapi: 3.0.3
+info:
+  title: IoT Sensor Service API
+  description: |
+    RESTful API for managing IoT sensor devices in a smart home ecosystem.
+
+    This service provides CRUD operations for sensor management with SQLite
+    persistence and Bearer token authentication on sensor endpoints.
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:8000
+    description: Python Service (FastAPI)
+  - url: http://localhost:8080
+    description: Go Service (Gin)
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: |
+        Returns the service health status and identifier.
+
+        This endpoint is intentionally unauthenticated to support load balancer
+        and orchestrator health probes (see Kubernetes liveness/readiness probes).
+      tags:
+        - Health
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+                service: python
+
+  /sensors:
+    get:
+      summary: List all sensors
+      description: Returns all sensors in the database with a count.
+      tags:
+        - Sensors
+      responses:
+        '200':
+          description: List of sensors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SensorList'
+              example:
+                sensors:
+                  - id: sensor-001
+                    name: Living Room Thermostat
+                    type: temperature
+                    location: living_room
+                    value: 72.5
+                    unit: fahrenheit
+                    status: active
+                    last_reading: "2026-01-15T10:30:00Z"
+                count: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      summary: Create a new sensor
+      description: Creates a new sensor with auto-generated ID and timestamps.
+      tags:
+        - Sensors
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SensorCreate'
+            example:
+              name: Garage Door Sensor
+              type: contact
+              location: garage
+              value: 1
+              unit: boolean
+              status: active
+      responses:
+        '201':
+          description: Sensor created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sensor'
+              example:
+                id: sensor-007
+                name: Garage Door Sensor
+                type: contact
+                location: garage
+                value: 1
+                unit: boolean
+                status: active
+                last_reading: "2026-01-22T14:30:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /sensors/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Unique sensor identifier
+        schema:
+          type: string
+        example: sensor-001
+
+    get:
+      summary: Get sensor by ID
+      description: Returns a single sensor by its unique identifier.
+      tags:
+        - Sensors
+      responses:
+        '200':
+          description: Sensor details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sensor'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      summary: Update sensor
+      description: Updates an existing sensor. Only provided fields are modified.
+      tags:
+        - Sensors
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SensorUpdate'
+            example:
+              value: 75.0
+              status: inactive
+      responses:
+        '200':
+          description: Sensor updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sensor'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      summary: Delete sensor
+      description: Removes a sensor from the database.
+      tags:
+        - Sensors
+      responses:
+        '204':
+          description: Sensor deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Bearer token authentication. Include in header as "Authorization: Bearer <token>"
+
+  schemas:
+    Sensor:
+      type: object
+      description: Complete sensor record
+      properties:
+        id:
+          type: string
+          description: Unique sensor identifier (server-generated, sequential)
+          pattern: "^sensor-\\d{3,}$"
+          readOnly: true
+          example: sensor-001
+        name:
+          type: string
+          description: Human-readable sensor name
+          example: Living Room Thermostat
+        type:
+          type: string
+          description: Sensor type category
+          enum:
+            - temperature
+            - motion
+            - humidity
+            - light
+            - air_quality
+            - co2
+            - contact
+            - pressure
+          example: temperature
+        location:
+          type: string
+          description: Physical location of the sensor
+          example: living_room
+        value:
+          type: number
+          description: Current sensor reading value
+          example: 72.5
+        unit:
+          type: string
+          description: Unit of measurement
+          enum:
+            - fahrenheit
+            - celsius
+            - boolean
+            - percent
+            - aqi
+            - ppm
+            - lux
+            - pascal
+          example: fahrenheit
+        status:
+          type: string
+          description: Operational status
+          enum:
+            - active
+            - inactive
+            - error
+          example: active
+        last_reading:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of last reading
+          example: "2026-01-15T10:30:00Z"
+        created_at:
+          type: string
+          format: date-time
+          description: Record creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+      required:
+        - id
+        - name
+        - type
+        - location
+        - value
+        - unit
+        - status
+        - last_reading
+
+    SensorCreate:
+      type: object
+      description: Request body for creating a new sensor
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Human-readable sensor name
+        type:
+          type: string
+          enum:
+            - temperature
+            - motion
+            - humidity
+            - light
+            - air_quality
+            - co2
+            - contact
+            - pressure
+          description: Sensor type category
+        location:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Physical location of the sensor
+        value:
+          type: number
+          description: Initial sensor reading value
+        unit:
+          type: string
+          enum:
+            - fahrenheit
+            - celsius
+            - boolean
+            - percent
+            - aqi
+            - ppm
+            - lux
+            - pascal
+          description: Unit of measurement
+        status:
+          type: string
+          enum:
+            - active
+            - inactive
+            - error
+          description: Initial operational status
+      required:
+        - name
+        - type
+        - location
+        - value
+        - unit
+        - status
+
+    SensorUpdate:
+      type: object
+      description: Request body for updating a sensor. All fields are optional.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        type:
+          type: string
+          enum:
+            - temperature
+            - motion
+            - humidity
+            - light
+            - air_quality
+            - co2
+            - contact
+            - pressure
+        location:
+          type: string
+          minLength: 1
+          maxLength: 100
+        value:
+          type: number
+        unit:
+          type: string
+          enum:
+            - fahrenheit
+            - celsius
+            - boolean
+            - percent
+            - aqi
+            - ppm
+            - lux
+            - pascal
+        status:
+          type: string
+          enum:
+            - active
+            - inactive
+            - error
+
+    SensorList:
+      type: object
+      description: Response containing a list of sensors
+      properties:
+        sensors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Sensor'
+        count:
+          type: integer
+          description: Total number of sensors
+      required:
+        - sensors
+        - count
+
+    HealthResponse:
+      type: object
+      description: Health check response
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+          description: Service identifier (python or go)
+          example: python
+      required:
+        - status
+        - service
+
+    Error:
+      type: object
+      description: Error response (RFC 7807 compatible)
+      properties:
+        detail:
+          type: string
+          description: Human-readable explanation of the error
+      required:
+        - detail
+
+  responses:
+    Unauthorized:
+      description: Authentication required or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            detail: Invalid or expired token
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            detail: "No sensor with id 'sensor-999'"
+
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            detail: Invalid request body
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    loc:
+                      type: array
+                      items:
+                        type: string
+                    msg:
+                      type: string
+                    type:
+                      type: string

@@ -1,0 +1,31 @@
+sequenceDiagram
+    actor Client
+    participant GoAlert as Go Alert Service
+    participant CB as Circuit Breaker
+    participant GoSvc as Go Sensor Service
+
+    Client->>+GoAlert: POST /rules {sensor_id: "sensor-001"}
+    GoAlert->>CB: Execute GET /sensors/sensor-001
+
+    alt Sensor service healthy
+        CB->>+GoSvc: GET /sensors/sensor-001
+        GoSvc-->>-CB: 200 OK {sensor}
+        CB-->>GoAlert: sensor found
+        GoAlert->>GoAlert: Create rule in DB
+        GoAlert-->>-Client: 201 Created {rule}
+    else Sensor not found (404)
+        CB->>+GoSvc: GET /sensors/sensor-001
+        GoSvc-->>-CB: 404 Not Found
+        CB-->>GoAlert: not found error
+        GoAlert-->>Client: 400 Bad Request "Sensor not found"
+    else Sensor service down → circuit trips OPEN
+        loop Retry with backoff (up to 3 attempts, 1s / 2s delays)
+            CB->>GoSvc: GET /sensors/sensor-001
+            GoSvc--xCB: connection refused (timeout)
+            Note over CB: failure count +1
+        end
+        Note over CB: ConsecutiveFailures >= fail_max → OPEN
+        CB-->>GoAlert: CircuitBreakerError (no further network calls)
+        GoAlert->>GoAlert: Create rule with warning
+        GoAlert-->>Client: 201 Created {rule, warning}
+    end

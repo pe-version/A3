@@ -1,0 +1,29 @@
+[
+  {
+    "id": "rule-001",
+    "sensor_id": "sensor-001",
+    "metric": "value",
+    "operator": "gt",
+    "threshold": 80.0,
+    "name": "Living Room Temperature High",
+    "status": "active"
+  },
+  {
+    "id": "rule-002",
+    "sensor_id": "sensor-003",
+    "metric": "value",
+    "operator": "gt",
+    "threshold": 70.0,
+    "name": "Kitchen Humidity High",
+    "status": "active"
+  },
+  {
+    "id": "rule-003",
+    "sensor_id": "sensor-006",
+    "metric": "value",
+    "operator": "gt",
+    "threshold": 1000.0,
+    "name": "Office CO2 Dangerous Level",
+    "status": "active"
+  }
+]

@@ -1,0 +1,41 @@
+flowchart TB
+    Client["HTTP Client\n(curl, Postman, etc.)"]
+
+    subgraph Docker["Docker Compose Network"]
+        RabbitMQ["RabbitMQ\n:5672 / :15672"]
+
+        subgraph SensorServices["Sensor Services"]
+            PythonSvc["Python Sensor\nFastAPI · :8000"]
+            GoSvc["Go Sensor\nGin · :8080"]
+        end
+
+        subgraph AlertServices["Alert Services"]
+            PythonAlert["Python Alert\nFastAPI · :8002"]
+            GoAlert["Go Alert\nGin · :8081"]
+        end
+
+        subgraph Storage["Data Storage"]
+            PDB[("sensors-python.db")]
+            GDB[("sensors-go.db")]
+            PAB[("alerts-python.db")]
+            GAB[("alerts-go.db")]
+        end
+    end
+
+    Client -->|"Bearer token"| PythonSvc
+    Client -->|"Bearer token"| GoSvc
+    Client -->|"Bearer token"| PythonAlert
+    Client -->|"Bearer token"| GoAlert
+
+    GoSvc -->|"PUT /sensors/:id\npublishes sensor.updated"| RabbitMQ
+    PythonSvc -->|"PUT /sensors/:id\npublishes sensor.updated"| RabbitMQ
+    RabbitMQ -->|"sensor.updated events"| GoAlert
+    RabbitMQ -->|"sensor.updated events"| PythonAlert
+
+    GoAlert -->|"GET /sensors/:id\n(circuit breaker)"| GoSvc
+    PythonAlert -->|"GET /sensors/:id\n(retries + timeout)"| PythonSvc
+
+    PythonSvc --> PDB
+    GoSvc --> GDB
+    PythonAlert --> PAB
+    GoAlert --> GAB

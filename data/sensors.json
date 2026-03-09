@@ -1,0 +1,62 @@
+[
+  {
+    "id": "sensor-001",
+    "name": "Living Room Thermostat",
+    "type": "temperature",
+    "location": "living_room",
+    "value": 72.5,
+    "unit": "fahrenheit",
+    "status": "active",
+    "last_reading": "2026-01-15T10:30:00Z"
+  },
+  {
+    "id": "sensor-002",
+    "name": "Front Door Motion",
+    "type": "motion",
+    "location": "front_entrance",
+    "value": 0,
+    "unit": "boolean",
+    "status": "active",
+    "last_reading": "2026-01-15T10:28:00Z"
+  },
+  {
+    "id": "sensor-003",
+    "name": "Kitchen Humidity",
+    "type": "humidity",
+    "location": "kitchen",
+    "value": 45.2,
+    "unit": "percent",
+    "status": "active",
+    "last_reading": "2026-01-15T10:29:00Z"
+  },
+  {
+    "id": "sensor-004",
+    "name": "Bedroom Light",
+    "type": "light",
+    "location": "master_bedroom",
+    "value": 0,
+    "unit": "percent",
+    "status": "inactive",
+    "last_reading": "2026-01-15T09:00:00Z"
+  },
+  {
+    "id": "sensor-005",
+    "name": "Backyard Air Quality",
+    "type": "air_quality",
+    "location": "backyard",
+    "value": 42,
+    "unit": "aqi",
+    "status": "active",
+    "last_reading": "2026-01-15T10:30:00Z"
+  },
+  {
+    "id": "sensor-006",
+    "name": "Office CO2 Monitor",
+    "type": "co2",
+    "location": "home_office",
+    "value": 620,
+    "unit": "ppm",
+    "status": "active",
+    "last_reading": "2026-01-15T10:30:00Z"
+  }
+]

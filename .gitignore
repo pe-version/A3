@@ -1,0 +1,25 @@
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Personal notes
+hardware/
+social-news-feed/
+CONCEPTS_TO_REVIEW.md
+RUBRIC.md
+
+# Database files
+*.db
