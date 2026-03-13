@@ -23,3 +23,6 @@ RUBRIC.md
 
 # Database files
 *.db
+
+# Environment secrets
+.env
