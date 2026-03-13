@@ -32,7 +32,7 @@ func NewSensorClient(baseURL, apiToken string, failMax int, resetTimeout int) *S
 			return counts.ConsecutiveFailures >= uint32(failMax)
 		},
 		OnStateChange: func(name string, from gobreaker.State, to gobreaker.State) {
-			slog.Info("Circuit breaker state changed",
+			slog.Warn("Circuit breaker state changed",
 				"name", name, "from", from.String(), "to", to.String())
 		},
 	}
@@ -73,8 +73,9 @@ func (sc *SensorClient) makeRequestWithRetry(sensorID string, maxRetries int) (i
 	var lastErr error
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
+		var backoff time.Duration
 		if attempt > 0 {
-			backoff := time.Duration(math.Pow(2, float64(attempt-1))) * time.Second
+			backoff = time.Duration(math.Pow(2, float64(attempt-1))) * time.Second
 			time.Sleep(backoff)
 		}
 
@@ -84,9 +85,12 @@ func (sc *SensorClient) makeRequestWithRetry(sensorID string, maxRetries int) (i
 		}
 		lastErr = err
 		slog.Warn("Sensor service request failed, retrying",
-			"sensor_id", sensorID, "attempt", attempt+1, "error", err.Error())
+			"sensor_id", sensorID, "attempt", attempt+1, "max_retries", maxRetries,
+			"backoff_ms", backoff.Milliseconds(), "error", err.Error())
 	}
 
+	slog.Warn("All retries exhausted for sensor service",
+		"sensor_id", sensorID, "max_retries", maxRetries, "error", lastErr.Error())
 	return nil, lastErr
 }
 

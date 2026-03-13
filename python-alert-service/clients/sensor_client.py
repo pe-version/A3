@@ -55,6 +55,7 @@ class SensorClient:
         """
         last_err: Exception | None = None
         for attempt in range(max_retries):
+            backoff = 0
             if attempt > 0:
                 backoff = 2 ** (attempt - 1)  # 1s, 2s
                 time.sleep(backoff)
@@ -71,11 +72,19 @@ class SensorClient:
             except Exception as e:
                 last_err = e
                 logger.warning(
-                    "Sensor service request failed, retrying sensor_id=%s attempt=%d error=%s",
+                    "Sensor service request failed, retrying sensor_id=%s attempt=%d max_retries=%d backoff_ms=%d error=%s",
                     sensor_id,
                     attempt + 1,
+                    max_retries,
+                    backoff * 1000,
                     str(e),
                 )
+        logger.warning(
+            "All retries exhausted for sensor service sensor_id=%s max_retries=%d error=%s",
+            sensor_id,
+            max_retries,
+            str(last_err),
+        )
         raise last_err
 
     def get_sensor(self, sensor_id: str) -> tuple[dict | None, bool]:
