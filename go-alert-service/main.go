@@ -18,6 +18,7 @@ import (
 	"iot-alert-service/database"
 	"iot-alert-service/handlers"
 	"iot-alert-service/messaging"
+	"iot-alert-service/metrics"
 	"iot-alert-service/middleware"
 	"iot-alert-service/repositories"
 	"iot-alert-service/services"
@@ -63,9 +64,21 @@ func main() {
 		cfg.CBResetTimeout,
 	)
 
+	// Start metrics server on :9090
+	metrics.PipelineMode = cfg.PipelineMode
+	metrics.WorkerCount = cfg.WorkerCount
+	metrics.Serve(":9090")
+
 	// Start RabbitMQ consumer in background
 	evaluator := services.NewAlertEvaluator(ruleRepo, alertRepo)
-	consumer := messaging.NewAlertConsumer(cfg.RabbitMQURL, evaluator.Evaluate)
+	var consumer *messaging.AlertConsumer
+	if cfg.PipelineMode == "async" {
+		slog.Info("Pipeline mode: async", "worker_count", cfg.WorkerCount)
+		consumer = messaging.NewAsyncAlertConsumer(cfg.RabbitMQURL, evaluator.Evaluate, cfg.WorkerCount)
+	} else {
+		slog.Info("Pipeline mode: blocking")
+		consumer = messaging.NewAlertConsumer(cfg.RabbitMQURL, evaluator.Evaluate)
+	}
 	consumer.Start()
 
 	// Create handlers

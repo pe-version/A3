@@ -2,7 +2,9 @@
 
 import logging
 import sqlite3
+import time
 
+from metrics import server as metrics_server
 from repositories.alert_rule_repository import AlertRuleRepository
 from repositories.triggered_alert_repository import TriggeredAlertRepository
 
@@ -33,8 +35,10 @@ class AlertEvaluator:
         Args:
             event: Dict with keys: sensor_id, value, type, unit, timestamp.
         """
+        start = time.monotonic()
         sensor_id = event.get("sensor_id")
         sensor_value = event.get("value")
+        trace_id = event.get("trace_id")
 
         if sensor_id is None or sensor_value is None:
             logger.warning("Received incomplete sensor event: %s", event)
@@ -63,10 +67,15 @@ class AlertEvaluator:
                         threshold=rule.threshold,
                         message=message,
                     )
+                    if metrics_server.collector is not None:
+                        metrics_server.collector.inc_triggered()
                     logger.info(
                         "Alert triggered: %s",
                         message,
-                        extra={"alert_id": alert.id, "rule_id": rule.id},
+                        extra={"alert_id": alert.id, "rule_id": rule.id, "trace_id": trace_id},
                     )
         finally:
+            if metrics_server.collector is not None:
+                metrics_server.collector.record_processing_duration(start)
+                metrics_server.collector.inc_processed()
             conn.close()

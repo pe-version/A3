@@ -1,8 +1,13 @@
 """Sensor CRUD endpoints."""
 
+import logging
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from middleware.auth import verify_token
+
+logger = logging.getLogger("sensor_service")
 from models.sensor import Sensor, SensorCreate, SensorList, SensorUpdate
 from repositories.sensor_repository import SensorRepository, get_sensor_repository
 
@@ -80,6 +85,10 @@ def update_sensor(
             detail=f"No sensor with id '{sensor_id}'",
         )
 
+    # Generate trace ID to follow this event through the pipeline
+    trace_id = str(uuid.uuid4())
+    logger.info("Sensor updated, publishing event", extra={"sensor_id": updated.id, "trace_id": trace_id})
+
     # Publish sensor.updated event to RabbitMQ
     publisher = request.app.state.publisher
     publisher.publish_sensor_updated(
@@ -87,6 +96,7 @@ def update_sensor(
         value=updated.value,
         sensor_type=updated.type.value,
         unit=updated.unit.value,
+        trace_id=trace_id,
     )
 
     return updated

@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"database/sql"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"iot-sensor-service/messaging"
 	"iot-sensor-service/models"
@@ -108,9 +110,13 @@ func (h *SensorHandler) UpdateSensor(c *gin.Context) {
 		return
 	}
 
+	// Generate trace ID to follow this event through the pipeline
+	traceID := uuid.New().String()
+	slog.Info("Sensor updated, publishing event", "sensor_id", sensor.ID, "trace_id", traceID)
+
 	// Publish sensor.updated event for alert services to consume
 	if h.publisher != nil {
-		go h.publisher.PublishSensorUpdated(sensor.ID, sensor.Value, sensor.Type, sensor.Unit)
+		go h.publisher.PublishSensorUpdated(sensor.ID, sensor.Value, sensor.Type, sensor.Unit, traceID)
 	}
 
 	c.JSON(http.StatusOK, sensor)

@@ -16,6 +16,7 @@ type SensorEvent struct {
 	Type      string  `json:"type"`
 	Unit      string  `json:"unit"`
 	Timestamp string  `json:"timestamp"`
+	TraceID   string  `json:"trace_id"`
 }
 
 // EventPublisher publishes sensor events to RabbitMQ.
@@ -64,7 +65,7 @@ func (p *EventPublisher) connect() error {
 
 // PublishSensorUpdated publishes a sensor.updated event to the sensor_events exchange.
 // If RabbitMQ is unavailable the error is logged and the call returns silently.
-func (p *EventPublisher) PublishSensorUpdated(sensorID string, value float64, sensorType, unit string) {
+func (p *EventPublisher) PublishSensorUpdated(sensorID string, value float64, sensorType, unit, traceID string) {
 	event := SensorEvent{
 		Event:     "sensor.updated",
 		SensorID:  sensorID,
@@ -72,6 +73,7 @@ func (p *EventPublisher) PublishSensorUpdated(sensorID string, value float64, se
 		Type:      sensorType,
 		Unit:      unit,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		TraceID:   traceID,
 	}
 
 	body, err := json.Marshal(event)
@@ -96,7 +98,7 @@ func (p *EventPublisher) PublishSensorUpdated(sensorID string, value float64, se
 		}
 	}
 
-	slog.Info("Published sensor.updated event", "sensor_id", sensorID, "value", value)
+	slog.Info("Published sensor.updated event", "sensor_id", sensorID, "value", value, "trace_id", traceID)
 }
 
 func (p *EventPublisher) publish(body []byte) error {

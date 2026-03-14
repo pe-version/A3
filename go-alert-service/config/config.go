@@ -18,6 +18,8 @@ type Config struct {
 	RabbitMQURL      string
 	CBFailMax        int
 	CBResetTimeout   int
+	PipelineMode     string // "blocking" or "async"
+	WorkerCount      int    // worker pool size; always parsed, ignored in blocking mode
 }
 
 // Load reads configuration from environment variables.
@@ -42,6 +44,11 @@ func Load() (*Config, error) {
 		cbResetTimeout = 30
 	}
 
+	workerCount, err := strconv.Atoi(getEnv("WORKER_COUNT", "4"))
+	if err != nil || workerCount < 1 {
+		workerCount = 4
+	}
+
 	return &Config{
 		Port:             port,
 		DatabasePath:     getEnv("DATABASE_PATH", "/app/data/alerts-go.db"),
@@ -53,6 +60,8 @@ func Load() (*Config, error) {
 		RabbitMQURL:      getEnv("RABBITMQ_URL", "amqp://iot_service:iot_secret@rabbitmq:5672/"),
 		CBFailMax:        cbFailMax,
 		CBResetTimeout:   cbResetTimeout,
+		PipelineMode:     getEnv("PIPELINE_MODE", "blocking"),
+		WorkerCount:      workerCount,
 	}, nil
 }
 

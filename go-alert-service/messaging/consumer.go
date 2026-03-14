@@ -6,6 +6,8 @@ import (
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+
+	"iot-alert-service/metrics"
 )
 
 // SensorEvent represents a sensor.updated event from RabbitMQ.
@@ -16,23 +18,49 @@ type SensorEvent struct {
 	Type      string  `json:"type"`
 	Unit      string  `json:"unit"`
 	Timestamp string  `json:"timestamp"`
+	TraceID   string  `json:"trace_id"`
 }
 
 // AlertConsumer consumes sensor.updated events from RabbitMQ.
 type AlertConsumer struct {
 	url      string
 	callback func(SensorEvent)
+	// async pipeline fields; nil when running in blocking mode
+	eventCh chan SensorEvent
 }
 
-// NewAlertConsumer creates a new alert consumer.
+// NewAlertConsumer creates a new alert consumer in blocking mode.
 func NewAlertConsumer(url string, callback func(SensorEvent)) *AlertConsumer {
 	return &AlertConsumer{url: url, callback: callback}
 }
 
+// NewAsyncAlertConsumer creates a consumer that dispatches events to a
+// buffered worker pool. workerCount goroutines drain the channel; when the
+// channel is full the consumer blocks (backpressure).
+func NewAsyncAlertConsumer(url string, callback func(SensorEvent), workerCount int) *AlertConsumer {
+	// Buffer = workerCount * 10 gives workers headroom without unbounded queuing.
+	ch := make(chan SensorEvent, workerCount*10)
+	c := &AlertConsumer{url: url, callback: callback, eventCh: ch}
+	for i := 0; i < workerCount; i++ {
+		go c.worker()
+	}
+	return c
+}
+
+func (c *AlertConsumer) worker() {
+	for event := range c.eventCh {
+		c.callback(event)
+	}
+}
+
 // Start begins consuming in a background goroutine with reconnect logic.
 func (c *AlertConsumer) Start() {
+	mode := "blocking"
+	if c.eventCh != nil {
+		mode = "async"
+	}
 	go c.consumeLoop()
-	slog.Info("Alert consumer started")
+	slog.Info("Alert consumer started", "mode", mode)
 }
 
 func (c *AlertConsumer) consumeLoop() {
@@ -91,9 +119,16 @@ func (c *AlertConsumer) consume() error {
 			continue
 		}
 		if event.Event == "sensor.updated" {
+			metrics.EventsReceived.Add(1)
 			slog.Info("Received sensor.updated event",
-				"sensor_id", event.SensorID, "value", event.Value)
-			c.callback(event)
+				"sensor_id", event.SensorID, "value", event.Value, "trace_id", event.TraceID)
+			if c.eventCh != nil {
+				// Async: send to worker pool; blocks if channel is full (backpressure).
+				c.eventCh <- event
+			} else {
+				// Blocking: evaluate inline before acking.
+				c.callback(event)
+			}
 		}
 		msg.Ack(false)
 	}

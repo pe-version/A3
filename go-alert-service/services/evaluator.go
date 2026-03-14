@@ -3,8 +3,10 @@ package services
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
 	"iot-alert-service/messaging"
+	"iot-alert-service/metrics"
 	"iot-alert-service/repositories"
 )
 
@@ -21,9 +23,15 @@ func NewAlertEvaluator(ruleRepo repositories.AlertRuleRepository, alertRepo repo
 
 // Evaluate checks a sensor event against all active rules for that sensor.
 func (e *AlertEvaluator) Evaluate(event messaging.SensorEvent) {
+	start := time.Now()
+	defer func() {
+		metrics.RecordProcessingDuration(start)
+		metrics.EventsProcessed.Add(1)
+	}()
+
 	rules, err := e.ruleRepo.GetActiveRulesForSensor(event.SensorID)
 	if err != nil {
-		slog.Error("Failed to get active rules", "sensor_id", event.SensorID, "error", err.Error())
+		slog.Error("Failed to get active rules", "sensor_id", event.SensorID, "trace_id", event.TraceID, "error", err.Error())
 		return
 	}
 
@@ -34,11 +42,12 @@ func (e *AlertEvaluator) Evaluate(event messaging.SensorEvent) {
 
 			alert, err := e.alertRepo.Create(rule.ID, event.SensorID, event.Value, rule.Threshold, message)
 			if err != nil {
-				slog.Error("Failed to create triggered alert", "rule_id", rule.ID, "error", err.Error())
+				slog.Error("Failed to create triggered alert", "rule_id", rule.ID, "trace_id", event.TraceID, "error", err.Error())
 				continue
 			}
 
-			slog.Info("Alert triggered", "alert_id", alert.ID, "rule_id", rule.ID, "message", message)
+			metrics.AlertsTriggered.Add(1)
+			slog.Info("Alert triggered", "alert_id", alert.ID, "rule_id", rule.ID, "trace_id", event.TraceID, "message", message)
 		}
 	}
 }

@@ -43,7 +43,7 @@ class EventPublisher:
             self._channel = None
 
     def publish_sensor_updated(
-        self, sensor_id: str, value: float, sensor_type: str, unit: str
+        self, sensor_id: str, value: float, sensor_type: str, unit: str, trace_id: str
     ) -> None:
         """Publish a sensor.updated event to the sensor_events exchange.
 
@@ -52,6 +52,7 @@ class EventPublisher:
             value: New sensor value.
             sensor_type: Type of sensor (temperature, humidity, etc.).
             unit: Unit of measurement.
+            trace_id: UUID generated at the HTTP handler to trace this event end-to-end.
         """
         event = {
             "event": "sensor.updated",
@@ -60,6 +61,7 @@ class EventPublisher:
             "type": sensor_type,
             "unit": unit,
             "timestamp": datetime.now(timezone.utc).isoformat(),
+            "trace_id": trace_id,
         }
 
         try:
@@ -74,7 +76,7 @@ class EventPublisher:
             )
             logger.info(
                 "Published sensor.updated event",
-                extra={"sensor_id": sensor_id, "value": value},
+                extra={"sensor_id": sensor_id, "value": value, "trace_id": trace_id},
             )
         except Exception as e:
             logger.warning("Failed to publish event: %s", str(e))

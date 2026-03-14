@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     rabbitmq_url: str = "amqp://iot_service:iot_secret@rabbitmq:5672/"
     cb_fail_max: int = 5
     cb_reset_timeout: int = 30
+    pipeline_mode: str = "blocking"  # "blocking" or "async"
+    worker_count: int = 4  # worker pool size; always parsed, ignored in blocking mode
 
     class Config:
         env_file = ".env"
