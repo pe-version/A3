@@ -1,6 +1,6 @@
 # ADR-003: Resilience Pattern — Circuit Breaker for Inter-Service Calls
 
-**Date:** 2026-03-08
+**Date:** 2026-03-13
 **Status:** Accepted
 
 ## Context
@@ -47,5 +47,6 @@ The library is lightweight, well-maintained, and already used in the alert servi
 ## Consequences
 
 - Alert rules may reference sensor IDs that don't exist (if created while the circuit is open). This is an accepted trade-off documented via the `warning` field.
-- The circuit breaker's state is in-process (not shared across alert service instances). In a multi-instance deployment, each instance maintains its own breaker state.
-- The 2-second HTTP timeout and 3 retries mean the worst-case latency for a single create-rule call before the circuit opens is ~6 seconds (3 × 2s). This is acceptable for a low-frequency admin operation.
+- The circuit breaker's state is in-process (not shared across alert service instances). In a multi-instance deployment, each instance maintains its own breaker state. It also re-sets on service restart, so if the alert service restarts while the sensor service is down, the circuit breaker starts CLOSED and makes `fail_max` failing calls before reopening.
+- The 2-second HTTP timeout and 3 retries mean the worst-case latency for a single create-rule call before the circuit opens is ~7 seconds (2s + 1s delay + 2s + 2s delay). The delays come from the exponential backoff. This is acceptable for a low-frequency admin operation.
+- Retry-inside-breaker tradeoff: retrying inside the circuit breaker call means that each `GetSensor` call exhausts up to three attempts before counting as one failure toward `fail_max`. This slows the breaker's opening on sustained outages but prevents transient single-request errors from tripping it prematurely.

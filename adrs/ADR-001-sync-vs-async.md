@@ -1,6 +1,6 @@
 # ADR-001: Synchronous vs. Asynchronous Communication
 
-**Date:** 2026-03-08
+**Date:** 2026-03-13
 **Status:** Accepted
 
 ## Context
@@ -37,6 +37,7 @@ Rule creation is a user-initiated action (not high-frequency). Validating that t
 
 ## Consequences
 
-- Sensor updates gain resilience and decoupling at the cost of eventual consistency — alerts may be evaluated milliseconds after the sensor value is written.
+- Sensor updates gain resilience and decoupling at the cost of eventual consistency — alerts may be evaluated milliseconds after the sensor value is written. Thus, if a sensor value crosses a threshold and then returns back to the side of the threshold that doesn't trigger the alert before the consumer processes the event, the alert fires on a value that is no longer current, and that is an accepted risk of the eventual consistency expressed here.
 - Alert rule creation requires the sensor service to be reachable (or tolerates its unavailability via circuit breaker fallback).
-- RabbitMQ becomes a required infrastructure component.
+- RabbitMQ becomes a required infrastructure component, meaning both local dev and CI require a running broker, increasing setup friction.
+- RabbitMQ's fanout delivers messages in order per consumer, but in the case of multiple consumer instances, if one update is received by one consumer instance shortly before another one is received by another consumer instance but the first consumer processes the former update slightly more slowly than the second consumer processes the latter update, the slightly newer alert might be evaluated first.
