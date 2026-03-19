@@ -1,0 +1,8 @@
+=== Go Sensor Service ===
+2026/03/14 05:27:39 INFO Sensor updated, publishing event sensor_id=sensor-001 trace_id=6e6cb0c6-6cff-4d73-8f16-f41573f63532
+2026/03/14 05:27:39 INFO Published sensor.updated event sensor_id=sensor-001 value=82 trace_id=6e6cb0c6-6cff-4d73-8f16-f41573f63532
+
+=== Go Alert Service ===
+2026/03/14 05:27:39 INFO Received sensor.updated event sensor_id=sensor-001 value=82 trace_id=6e6cb0c6-6cff-4d73-8f16-f41573f63532
+2026/03/14 05:27:39 INFO Alert triggered alert_id=alert-22199 rule_id=rule-001 trace_id=6e6cb0c6-6cff-4d73-8f16-f41573f63532 message="Sensor sensor-001 value 82.00 gt threshold 80.00 (rule: Living Room Temperature High)"
+2026/03/14 05:27:39 INFO Alert triggered alert_id=alert-22200 rule_id=rule-004 trace_id=6e6cb0c6-6cff-4d73-8f16-f41573f63532 message="Sensor sensor-001 value 82.00 gt threshold 80.00 (rule: High Temperature Alert)"

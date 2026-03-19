@@ -1,0 +1,30 @@
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+{"timestamp": "2026-03-14T05:27:19", "level": "INFO", "correlation_id": "-", "message": "Metrics server starting"}
+{"timestamp": "2026-03-14T05:27:19", "level": "INFO", "correlation_id": "-", "message": "Alert consumer started"}
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+{"timestamp": "2026-03-14T05:27:19", "level": "INFO", "correlation_id": "-", "message": "Connected to RabbitMQ, waiting for sensor events"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Received sensor.updated event"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Alert triggered: Sensor sensor-001 value 82 Operator.GT threshold 80.0 (rule: Living Room Temperature High)"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Received sensor.updated event"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Alert triggered: Sensor sensor-001 value 83 Operator.GT threshold 80.0 (rule: Living Room Temperature High)"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Received sensor.updated event"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Alert triggered: Sensor sensor-001 value 84 Operator.GT threshold 80.0 (rule: Living Room Temperature High)"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Received sensor.updated event"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Alert triggered: Sensor sensor-001 value 85 Operator.GT threshold 80.0 (rule: Living Room Temperature High)"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Received sensor.updated event"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Alert triggered: Sensor sensor-001 value 86 Operator.GT threshold 80.0 (rule: Living Room Temperature High)"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Received sensor.updated event"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Alert triggered: Sensor sensor-001 value 87 Operator.GT threshold 80.0 (rule: Living Room Temperature High)"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Received sensor.updated event"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Alert triggered: Sensor sensor-001 value 88 Operator.GT threshold 80.0 (rule: Living Room Temperature High)"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Received sensor.updated event"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Alert triggered: Sensor sensor-001 value 89 Operator.GT threshold 80.0 (rule: Living Room Temperature High)"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Received sensor.updated event"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Alert triggered: Sensor sensor-001 value 90 Operator.GT threshold 80.0 (rule: Living Room Temperature High)"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Received sensor.updated event"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Alert triggered: Sensor sensor-001 value 91 Operator.GT threshold 80.0 (rule: Living Room Temperature High)"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Received sensor.updated event"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Alert triggered: Sensor sensor-001 value 92 Operator.GT threshold 80.0 (rule: Living Room Temperature High)"}
+{"timestamp": "2026-03-14T05:27:39", "level": "INFO", "correlation_id": "-", "message": "Received sensor.updated event"}

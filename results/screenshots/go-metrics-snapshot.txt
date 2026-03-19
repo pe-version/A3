@@ -1,0 +1,19 @@
+# HELP events_received_total Total sensor.updated events consumed from RabbitMQ.
+# TYPE events_received_total counter
+events_received_total 11098
+
+# HELP events_processed_total Total events that completed evaluation.
+# TYPE events_processed_total counter
+events_processed_total 11098
+
+# HELP alerts_triggered_total Total alerts triggered by threshold crossings.
+# TYPE alerts_triggered_total counter
+alerts_triggered_total 22196
+
+# HELP event_processing_avg_microseconds Average event processing duration in microseconds.
+# TYPE event_processing_avg_microseconds gauge
+event_processing_avg_microseconds 20649.6
+
+# HELP pipeline_info Pipeline configuration.
+# TYPE pipeline_info gauge
+pipeline_info{mode="async",worker_count="4"} 1

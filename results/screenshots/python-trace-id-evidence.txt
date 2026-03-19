@@ -1,0 +1,7 @@
+=== Python Sensor Service ===
+{"timestamp": "2026-03-14T05:58:43", "level": "INFO", "correlation_id": "b8b6e38e-d372-489a-939c-763f2da25620", "message": "Sensor updated, publishing event", "sensor_id": "sensor-001", "trace_id": "f3f7ab16-a7c5-4e33-a1b1-81ad5b981945"}
+{"timestamp": "2026-03-14T05:58:43", "level": "INFO", "correlation_id": "b8b6e38e-d372-489a-939c-763f2da25620", "message": "Published sensor.updated event", "sensor_id": "sensor-001", "value": 85.0, "trace_id": "f3f7ab16-a7c5-4e33-a1b1-81ad5b981945"}
+
+=== Python Alert Service ===
+{"timestamp": "2026-03-14T05:58:43", "level": "INFO", "correlation_id": "-", "message": "Received sensor.updated event", "sensor_id": "sensor-001", "value": 85.0, "trace_id": "f3f7ab16-a7c5-4e33-a1b1-81ad5b981945"}
+{"timestamp": "2026-03-14T05:58:43", "level": "INFO", "correlation_id": "-", "message": "Alert triggered: Sensor sensor-001 value 85.0 Operator.GT threshold 80.0 (rule: Living Room Temperature High)", "trace_id": "f3f7ab16-a7c5-4e33-a1b1-81ad5b981945", "alert_id": "alert-22197", "rule_id": "rule-001"}

@@ -1,0 +1,30 @@
+2026/03/14 05:27:18 INFO Database already has data, skipping seed
+2026/03/14 05:27:18 INFO Pipeline mode: async worker_count=4
+2026/03/14 05:27:18 INFO Alert consumer started mode=async
+2026/03/14 05:27:18 INFO Starting Go IoT Alert Service port=8081
+2026/03/14 05:27:18 INFO Metrics server starting addr=:9090
+2026/03/14 05:27:18 INFO Connected to RabbitMQ, waiting for sensor events
+2026/03/14 05:27:37 INFO Request completed correlation_id=1f53d28f-1e94-4b31-8667-f0498c65cbc0 method=GET path=/health status=200 duration_ms=0
+2026/03/14 05:27:39 INFO Received sensor.updated event sensor_id=sensor-001 value=82 trace_id=6e6cb0c6-6cff-4d73-8f16-f41573f63532
+2026/03/14 05:27:39 INFO Alert triggered alert_id=alert-22199 rule_id=rule-001 trace_id=6e6cb0c6-6cff-4d73-8f16-f41573f63532 message="Sensor sensor-001 value 82.00 gt threshold 80.00 (rule: Living Room Temperature High)"
+2026/03/14 05:27:39 INFO Alert triggered alert_id=alert-22200 rule_id=rule-004 trace_id=6e6cb0c6-6cff-4d73-8f16-f41573f63532 message="Sensor sensor-001 value 82.00 gt threshold 80.00 (rule: High Temperature Alert)"
+2026/03/14 05:27:39 INFO Received sensor.updated event sensor_id=sensor-001 value=83 trace_id=ffa3afa0-6755-4982-8568-a5db8a82dd83
+2026/03/14 05:27:39 INFO Alert triggered alert_id=alert-22201 rule_id=rule-001 trace_id=ffa3afa0-6755-4982-8568-a5db8a82dd83 message="Sensor sensor-001 value 83.00 gt threshold 80.00 (rule: Living Room Temperature High)"
+2026/03/14 05:27:39 INFO Alert triggered alert_id=alert-22202 rule_id=rule-004 trace_id=ffa3afa0-6755-4982-8568-a5db8a82dd83 message="Sensor sensor-001 value 83.00 gt threshold 80.00 (rule: High Temperature Alert)"
+2026/03/14 05:27:39 INFO Received sensor.updated event sensor_id=sensor-001 value=84 trace_id=539fffaf-a97f-4e7b-a8bc-f3a1c3efa806
+2026/03/14 05:27:39 INFO Alert triggered alert_id=alert-22203 rule_id=rule-001 trace_id=539fffaf-a97f-4e7b-a8bc-f3a1c3efa806 message="Sensor sensor-001 value 84.00 gt threshold 80.00 (rule: Living Room Temperature High)"
+2026/03/14 05:27:39 INFO Alert triggered alert_id=alert-22204 rule_id=rule-004 trace_id=539fffaf-a97f-4e7b-a8bc-f3a1c3efa806 message="Sensor sensor-001 value 84.00 gt threshold 80.00 (rule: High Temperature Alert)"
+2026/03/14 05:27:39 INFO Received sensor.updated event sensor_id=sensor-001 value=85 trace_id=a14fd811-9c7b-49c8-b61a-835e81c3f1f8
+2026/03/14 05:27:39 INFO Alert triggered alert_id=alert-22205 rule_id=rule-001 trace_id=a14fd811-9c7b-49c8-b61a-835e81c3f1f8 message="Sensor sensor-001 value 85.00 gt threshold 80.00 (rule: Living Room Temperature High)"
+2026/03/14 05:27:39 INFO Alert triggered alert_id=alert-22206 rule_id=rule-004 trace_id=a14fd811-9c7b-49c8-b61a-835e81c3f1f8 message="Sensor sensor-001 value 85.00 gt threshold 80.00 (rule: High Temperature Alert)"
+2026/03/14 05:27:39 INFO Received sensor.updated event sensor_id=sensor-001 value=86 trace_id=ceccebde-38b3-498a-82c2-ffac06adc980
+2026/03/14 05:27:39 INFO Alert triggered alert_id=alert-22207 rule_id=rule-001 trace_id=ceccebde-38b3-498a-82c2-ffac06adc980 message="Sensor sensor-001 value 86.00 gt threshold 80.00 (rule: Living Room Temperature High)"
+2026/03/14 05:27:39 INFO Alert triggered alert_id=alert-22208 rule_id=rule-004 trace_id=ceccebde-38b3-498a-82c2-ffac06adc980 message="Sensor sensor-001 value 86.00 gt threshold 80.00 (rule: High Temperature Alert)"
+2026/03/14 05:27:39 INFO Received sensor.updated event sensor_id=sensor-001 value=87 trace_id=87c101c7-7125-4180-bd7a-efd0b2cbb417
+2026/03/14 05:27:39 INFO Alert triggered alert_id=alert-22209 rule_id=rule-001 trace_id=87c101c7-7125-4180-bd7a-efd0b2cbb417 message="Sensor sensor-001 value 87.00 gt threshold 80.00 (rule: Living Room Temperature High)"
+2026/03/14 05:27:39 INFO Alert triggered alert_id=alert-22210 rule_id=rule-004 trace_id=87c101c7-7125-4180-bd7a-efd0b2cbb417 message="Sensor sensor-001 value 87.00 gt threshold 80.00 (rule: High Temperature Alert)"
+2026/03/14 05:27:39 INFO Received sensor.updated event sensor_id=sensor-001 value=88 trace_id=0d98e5b3-ab71-4712-a1b2-6994f3ffeaaa
+2026/03/14 05:27:39 INFO Alert triggered alert_id=alert-22211 rule_id=rule-001 trace_id=0d98e5b3-ab71-4712-a1b2-6994f3ffeaaa message="Sensor sensor-001 value 88.00 gt threshold 80.00 (rule: Living Room Temperature High)"
+2026/03/14 05:27:39 INFO Alert triggered alert_id=alert-22212 rule_id=rule-004 trace_id=0d98e5b3-ab71-4712-a1b2-6994f3ffeaaa message="Sensor sensor-001 value 88.00 gt threshold 80.00 (rule: High Temperature Alert)"
+2026/03/14 05:27:39 INFO Received sensor.updated event sensor_id=sensor-001 value=89 trace_id=319479cb-6b75-4c1a-8a47-a6366917be09
+2026/03/14 05:27:39 INFO Alert triggered alert_id=alert-22213 rule_id=rule-001 trace_id=319479cb-6b75-4c1a-8a47-a6366917be09 message="Sensor sensor-001 value 89.00 gt threshold 80.00 (rule: Living Room Temperature High)"

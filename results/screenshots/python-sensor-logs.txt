@@ -1,0 +1,30 @@
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+{"timestamp": "2026-03-14T05:06:32", "level": "INFO", "correlation_id": "-", "message": "Connected to RabbitMQ for publishing"}
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+{"timestamp": "2026-03-14T05:07:01", "level": "INFO", "correlation_id": "937d6ebf-7958-492c-8cfa-dfe1b37f771a", "message": "Request completed", "method": "GET", "path": "/health", "status": 200, "duration_ms": 1.07}
+INFO:     127.0.0.1:46234 - "GET /health HTTP/1.1" 200 OK
+{"timestamp": "2026-03-14T05:07:23", "level": "INFO", "correlation_id": "9e8b2909-bf13-4b12-9340-fd4cf4e3c2ae", "message": "Request completed", "method": "GET", "path": "/health", "status": 200, "duration_ms": 1.55}
+INFO:     142.250.10.141:17191 - "GET /health HTTP/1.1" 200 OK
+{"timestamp": "2026-03-14T05:07:31", "level": "INFO", "correlation_id": "816c6ce1-d5b6-48a3-8699-0e6fe9300471", "message": "Request completed", "method": "GET", "path": "/health", "status": 200, "duration_ms": 0.63}
+INFO:     127.0.0.1:57754 - "GET /health HTTP/1.1" 200 OK
+{"timestamp": "2026-03-14T05:08:01", "level": "INFO", "correlation_id": "586bde9e-d2d7-4939-9067-6200c4f1f99e", "message": "Request completed", "method": "GET", "path": "/health", "status": 200, "duration_ms": 4.21}
+INFO:     127.0.0.1:36228 - "GET /health HTTP/1.1" 200 OK
+{"timestamp": "2026-03-14T05:08:32", "level": "INFO", "correlation_id": "4fdd0ac9-97d2-44ce-af5a-713cd73a3aab", "message": "Request completed", "method": "GET", "path": "/health", "status": 200, "duration_ms": 1.83}
+INFO:     127.0.0.1:45930 - "GET /health HTTP/1.1" 200 OK
+{"timestamp": "2026-03-14T05:09:02", "level": "INFO", "correlation_id": "bfa014c4-7e75-4f1e-b478-3fc4de2a4934", "message": "Request completed", "method": "GET", "path": "/health", "status": 200, "duration_ms": 1.22}
+INFO:     127.0.0.1:43490 - "GET /health HTTP/1.1" 200 OK
+{"timestamp": "2026-03-14T05:09:32", "level": "INFO", "correlation_id": "7414314d-ea1f-4a9f-b1d9-0ad5cdc7f353", "message": "Request completed", "method": "GET", "path": "/health", "status": 200, "duration_ms": 8.64}
+INFO:     127.0.0.1:44704 - "GET /health HTTP/1.1" 200 OK
+{"timestamp": "2026-03-14T05:10:03", "level": "INFO", "correlation_id": "bbaa2923-6e38-4708-8712-93f6fff32154", "message": "Request completed", "method": "GET", "path": "/health", "status": 200, "duration_ms": 8.76}
+INFO:     127.0.0.1:38960 - "GET /health HTTP/1.1" 200 OK
+{"timestamp": "2026-03-14T05:10:33", "level": "INFO", "correlation_id": "386c1412-7f4b-46b9-9704-633048b76454", "message": "Request completed", "method": "GET", "path": "/health", "status": 200, "duration_ms": 7.1}
+INFO:     127.0.0.1:46046 - "GET /health HTTP/1.1" 200 OK
+{"timestamp": "2026-03-14T05:11:04", "level": "INFO", "correlation_id": "0e323229-9ad9-4c55-83a1-a24fc3e1e69f", "message": "Request completed", "method": "GET", "path": "/health", "status": 200, "duration_ms": 10.9}
+INFO:     127.0.0.1:36918 - "GET /health HTTP/1.1" 200 OK
+{"timestamp": "2026-03-14T05:11:35", "level": "INFO", "correlation_id": "ed08fbf0-5f44-461d-bcf7-ff12b92f479d", "message": "Request completed", "method": "GET", "path": "/health", "status": 200, "duration_ms": 24.23}
+INFO:     127.0.0.1:46436 - "GET /health HTTP/1.1" 200 OK
+{"timestamp": "2026-03-14T05:12:05", "level": "INFO", "correlation_id": "a50f3dd8-5848-4f28-85d2-92d18d719e91", "message": "Request completed", "method": "GET", "path": "/health", "status": 200, "duration_ms": 15.0}
+INFO:     127.0.0.1:43606 - "GET /health HTTP/1.1" 200 OK
+{"timestamp": "2026-03-14T05:12:35", "level": "INFO", "correlation_id": "fa2a9092-b663-49b5-a670-bc86cbc16311", "message": "Request completed", "method": "GET", "path": "/health", "status": 200, "duration_ms": 5.19}

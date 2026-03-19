@@ -23,6 +23,9 @@ RUBRIC.md
 
 # Database files
 *.db
+*.db-shm
+*.db-wal
+*.db-journal
 
 # Environment secrets
 .env

@@ -1,0 +1,30 @@
+2026/03/14 05:06:31 INFO Database already has data, skipping seed
+2026/03/14 05:06:31 INFO Connected to RabbitMQ for publishing
+2026/03/14 05:06:31 INFO Starting Go IoT Sensor Service port=8080
+2026/03/14 05:07:01 INFO Request completed correlation_id=857a19b0-dc2f-4c9f-924f-81bc9aa797b0 method=GET path=/health status=200 duration_ms=0
+2026/03/14 05:07:23 INFO Request completed correlation_id=ced33e4d-9900-4adb-9e02-9bbef3f91795 method=GET path=/health status=200 duration_ms=0
+2026/03/14 05:07:31 INFO Request completed correlation_id=17595ac9-eba5-460a-95f4-8b3dc4e84cbf method=GET path=/health status=200 duration_ms=0
+2026/03/14 05:07:44 INFO Request completed correlation_id=e4dda6c6-62c9-43de-9d04-a1aef8999450 method=GET path=/health status=200 duration_ms=0
+2026/03/14 05:07:48 INFO Sensor updated, publishing event sensor_id=sensor-001 trace_id=6ac75e64-677f-43d3-9a83-fd43c4b6cd5f
+2026/03/14 05:07:48 INFO Request completed correlation_id=336a149a-6737-4ec5-bfa9-95a4e4d02b15 method=PUT path=/sensors/sensor-001 status=200 duration_ms=56
+2026/03/14 05:07:48 INFO Published sensor.updated event sensor_id=sensor-001 value=82 trace_id=6ac75e64-677f-43d3-9a83-fd43c4b6cd5f
+2026/03/14 05:07:49 INFO Sensor updated, publishing event sensor_id=sensor-001 trace_id=62f214c5-d629-4320-9e62-15dcfe18a7ee
+2026/03/14 05:07:49 INFO Request completed correlation_id=0f1f16c3-88a8-45fb-84d6-a08932928fa3 method=PUT path=/sensors/sensor-001 status=200 duration_ms=5
+2026/03/14 05:07:49 INFO Published sensor.updated event sensor_id=sensor-001 value=83 trace_id=62f214c5-d629-4320-9e62-15dcfe18a7ee
+2026/03/14 05:07:49 INFO Sensor updated, publishing event sensor_id=sensor-001 trace_id=157d048b-6f87-45ec-b2ea-121ab4a99735
+2026/03/14 05:07:49 INFO Request completed correlation_id=ccf2abeb-8f25-4ba9-b308-8da5d4e7bd49 method=PUT path=/sensors/sensor-001 status=200 duration_ms=10
+2026/03/14 05:07:49 INFO Published sensor.updated event sensor_id=sensor-001 value=84 trace_id=157d048b-6f87-45ec-b2ea-121ab4a99735
+2026/03/14 05:07:49 INFO Sensor updated, publishing event sensor_id=sensor-001 trace_id=3133c3ae-98df-4718-b329-74270853df4e
+2026/03/14 05:07:49 INFO Request completed correlation_id=e3dd2dab-4213-4d02-afa4-756f5ce5962f method=PUT path=/sensors/sensor-001 status=200 duration_ms=8
+2026/03/14 05:07:49 INFO Published sensor.updated event sensor_id=sensor-001 value=85 trace_id=3133c3ae-98df-4718-b329-74270853df4e
+2026/03/14 05:07:49 INFO Sensor updated, publishing event sensor_id=sensor-001 trace_id=42e48d3d-5ede-4a1d-8554-e1ef5b83ad18
+2026/03/14 05:07:49 INFO Request completed correlation_id=e0a5e44f-9a7d-457e-b5fc-be0cae004dc9 method=PUT path=/sensors/sensor-001 status=200 duration_ms=17
+2026/03/14 05:07:49 INFO Published sensor.updated event sensor_id=sensor-001 value=86 trace_id=42e48d3d-5ede-4a1d-8554-e1ef5b83ad18
+2026/03/14 05:07:50 INFO Sensor updated, publishing event sensor_id=sensor-001 trace_id=4fe37a9f-0385-455c-9ad3-c9421d3fb9d5
+2026/03/14 05:07:50 INFO Request completed correlation_id=7d106992-f768-4ba6-b226-73764913168f method=PUT path=/sensors/sensor-001 status=200 duration_ms=13
+2026/03/14 05:07:50 INFO Published sensor.updated event sensor_id=sensor-001 value=87 trace_id=4fe37a9f-0385-455c-9ad3-c9421d3fb9d5
+2026/03/14 05:07:50 INFO Sensor updated, publishing event sensor_id=sensor-001 trace_id=de0fd4cf-a528-4063-9461-a2e6d3d5ef88
+2026/03/14 05:07:50 INFO Request completed correlation_id=d4a084f8-574f-48d6-a854-20b4b68bad1a method=PUT path=/sensors/sensor-001 status=200 duration_ms=7
+2026/03/14 05:07:50 INFO Published sensor.updated event sensor_id=sensor-001 value=88 trace_id=de0fd4cf-a528-4063-9461-a2e6d3d5ef88
+2026/03/14 05:07:50 INFO Sensor updated, publishing event sensor_id=sensor-001 trace_id=98941bd6-fb7f-4594-ad36-588626953cc2
+2026/03/14 05:07:50 INFO Request completed correlation_id=d499723f-56df-4e90-92fe-ce8aeab32744 method=PUT path=/sensors/sensor-001 status=200 duration_ms=5

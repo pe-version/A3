@@ -1,0 +1,7 @@
+stack,size,mode,workers,events_sent,events_processed,wall_clock_s,throughput_per_s,avg_latency_us,error_rate_pct,cpu_peak,memory
+python,small,blocking,4,50,50,1.33,37.3,21479.2,0,0.22%,43.1MiB / 7.653GiB
+python,medium,blocking,4,500,482,11.51,41.8,23842.9,0,0.27%,43.52MiB / 7.653GiB
+python,large,blocking,4,5000,4710,113.16,41.6,24160.1,0,5.39%,44.77MiB / 7.653GiB
+python,small,async,4,50,37,1.34,27.5,45047.6,0,0.30%,43.3MiB / 7.653GiB
+python,medium,async,4,500,493,13.13,37.5,28778.3,0,0.29%,43.93MiB / 7.653GiB
+python,large,async,4,5000,4772,139.04,34.3,31074.3,0,0.31%,45.08MiB / 7.653GiB
