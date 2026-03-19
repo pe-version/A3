@@ -7,6 +7,7 @@ import (
 
 	"iot-alert-service/messaging"
 	"iot-alert-service/metrics"
+	"iot-alert-service/models"
 	"iot-alert-service/repositories"
 )
 
@@ -37,19 +38,24 @@ func (e *AlertEvaluator) Evaluate(event messaging.SensorEvent) {
 
 	for _, rule := range rules {
 		if thresholdCrossed(event.Value, rule.Operator, rule.Threshold) {
-			message := fmt.Sprintf("Sensor %s value %.2f %s threshold %.2f (rule: %s)",
-				event.SensorID, event.Value, rule.Operator, rule.Threshold, rule.Name)
-
-			alert, err := e.alertRepo.Create(rule.ID, event.SensorID, event.Value, rule.Threshold, message)
-			if err != nil {
-				slog.Error("Failed to create triggered alert", "rule_id", rule.ID, "trace_id", event.TraceID, "error", err.Error())
-				continue
-			}
-
-			metrics.AlertsTriggered.Add(1)
-			slog.Info("Alert triggered", "alert_id", alert.ID, "rule_id", rule.ID, "trace_id", event.TraceID, "message", message)
+			e.triggerAlert(rule, event)
 		}
 	}
+}
+
+// triggerAlert creates a triggered alert record for a rule whose threshold was crossed.
+func (e *AlertEvaluator) triggerAlert(rule models.AlertRule, event messaging.SensorEvent) {
+	message := fmt.Sprintf("Sensor %s value %.2f %s threshold %.2f (rule: %s)",
+		event.SensorID, event.Value, rule.Operator, rule.Threshold, rule.Name)
+
+	alert, err := e.alertRepo.Create(rule.ID, event.SensorID, event.Value, rule.Threshold, message)
+	if err != nil {
+		slog.Error("Failed to create triggered alert", "rule_id", rule.ID, "trace_id", event.TraceID, "error", err.Error())
+		return
+	}
+
+	metrics.AlertsTriggered.Add(1)
+	slog.Info("Alert triggered", "alert_id", alert.ID, "rule_id", rule.ID, "trace_id", event.TraceID, "message", message)
 }
 
 func thresholdCrossed(value float64, operator string, threshold float64) bool {

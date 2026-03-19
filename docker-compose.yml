@@ -1,23 +1,30 @@
 services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
+    restart: unless-stopped
     ports:
       - "5672:5672"
       - "15672:15672"
     environment:
-      - RABBITMQ_DEFAULT_USER=iot_service
-      - RABBITMQ_DEFAULT_PASS=iot_secret
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-iot_service}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS:-iot_secret}
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 30s
       timeout: 10s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
 
   python-service:
     image: hiphophippo/iot-python-service:a1
     build:
       context: ./python-service
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
@@ -25,25 +32,31 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_PATH=/app/data/sensors-python.db
-      - API_TOKEN=${API_TOKEN:-your-secret-token}
+      - API_TOKEN=${API_TOKEN:?API_TOKEN is required}
       - SEED_DATA_PATH=/app/data/sensors.json
-      - RABBITMQ_URL=amqp://iot_service:iot_secret@rabbitmq:5672/
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-iot_service}:${RABBITMQ_PASS:-iot_secret}@rabbitmq:5672/
       - LOG_LEVEL=INFO
       - LOG_FORMAT=json
     depends_on:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; req = urllib.request.Request('http://localhost:8000/health', headers={'Authorization': 'Bearer ${API_TOKEN:-your-secret-token}'}); urllib.request.urlopen(req, timeout=5)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
 
   go-service:
     image: hiphophippo/iot-go-service:a1
     build:
       context: ./go-service
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "8080:8080"
     volumes:
@@ -51,24 +64,30 @@ services:
     environment:
       - GIN_MODE=release
       - DATABASE_PATH=/app/data/sensors-go.db
-      - API_TOKEN=${API_TOKEN:-your-secret-token}
+      - API_TOKEN=${API_TOKEN:?API_TOKEN is required}
       - SEED_DATA_PATH=/app/data/sensors.json
-      - RABBITMQ_URL=amqp://iot_service:iot_secret@rabbitmq:5672/
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-iot_service}:${RABBITMQ_PASS:-iot_secret}@rabbitmq:5672/
       - LOG_LEVEL=INFO
       - LOG_FORMAT=json
     depends_on:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "--header", "Authorization: Bearer ${API_TOKEN:-your-secret-token}", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
 
   go-alert-service:
     build:
       context: ./go-alert-service
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "8081:8081"
       - "9091:9090"
@@ -78,10 +97,10 @@ services:
       - GIN_MODE=release
       - PORT=8081
       - DATABASE_PATH=/app/data/alerts-go.db
-      - API_TOKEN=${API_TOKEN:-your-secret-token}
+      - API_TOKEN=${API_TOKEN:?API_TOKEN is required}
       - SEED_DATA_PATH=/app/data/alert_rules.json
       - SENSOR_SERVICE_URL=http://go-service:8080
-      - RABBITMQ_URL=amqp://iot_service:iot_secret@rabbitmq:5672/
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-iot_service}:${RABBITMQ_PASS:-iot_secret}@rabbitmq:5672/
       - LOG_LEVEL=INFO
       - LOG_FORMAT=json
       - CB_FAIL_MAX=5
@@ -94,15 +113,21 @@ services:
       go-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "--header", "Authorization: Bearer ${API_TOKEN:-your-secret-token}", "http://localhost:8081/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
 
   python-alert-service:
     build:
       context: ./python-alert-service
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "8002:8001"
       - "9092:9090"
@@ -111,10 +136,10 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_PATH=/app/data/alerts-python.db
-      - API_TOKEN=${API_TOKEN:-your-secret-token}
+      - API_TOKEN=${API_TOKEN:?API_TOKEN is required}
       - SEED_DATA_PATH=/app/data/alert_rules.json
       - SENSOR_SERVICE_URL=http://python-service:8000
-      - RABBITMQ_URL=amqp://iot_service:iot_secret@rabbitmq:5672/
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-iot_service}:${RABBITMQ_PASS:-iot_secret}@rabbitmq:5672/
       - LOG_LEVEL=INFO
       - LOG_FORMAT=json
       - CB_FAIL_MAX=5
@@ -131,3 +156,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"

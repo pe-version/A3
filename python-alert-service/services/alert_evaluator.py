@@ -67,31 +67,37 @@ class AlertEvaluator:
             for rule in rules:
                 op_func = OPERATORS.get(rule["operator"])
                 if op_func and op_func(sensor_value, rule["threshold"]):
-                    message = (
-                        f"Sensor {sensor_id} value {sensor_value} "
-                        f"{rule['operator']} threshold {rule['threshold']} "
-                        f"(rule: {rule['name']})"
-                    )
-
-                    new_id = f"alert-{uuid.uuid4().hex[:8]}"
-                    now = datetime.now(timezone.utc).isoformat()
-
-                    await db.execute(
-                        "INSERT INTO triggered_alerts (id, rule_id, sensor_id, sensor_value, threshold, message, status, created_at) "
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                        (new_id, rule["id"], sensor_id, sensor_value, rule["threshold"], message, "open", now),
-                    )
-                    await db.commit()
-
-                    if metrics_server.collector is not None:
-                        metrics_server.collector.inc_triggered()
-                    logger.info(
-                        "Alert triggered: %s",
-                        message,
-                        extra={"alert_id": new_id, "rule_id": rule["id"], "trace_id": trace_id},
-                    )
+                    await self._trigger_alert(db, rule, sensor_id, sensor_value, trace_id)
         finally:
             await db.close()
             if metrics_server.collector is not None:
                 metrics_server.collector.record_processing_duration(start)
                 metrics_server.collector.inc_processed()
+
+    async def _trigger_alert(
+        self, db: aiosqlite.Connection, rule, sensor_id: str, sensor_value: float, trace_id: str | None
+    ) -> None:
+        """Create a triggered alert for a rule whose threshold was crossed."""
+        message = (
+            f"Sensor {sensor_id} value {sensor_value} "
+            f"{rule['operator']} threshold {rule['threshold']} "
+            f"(rule: {rule['name']})"
+        )
+
+        new_id = f"alert-{uuid.uuid4().hex[:8]}"
+        now = datetime.now(timezone.utc).isoformat()
+
+        await db.execute(
+            "INSERT INTO triggered_alerts (id, rule_id, sensor_id, sensor_value, threshold, message, status, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (new_id, rule["id"], sensor_id, sensor_value, rule["threshold"], message, "open", now),
+        )
+        await db.commit()
+
+        if metrics_server.collector is not None:
+            metrics_server.collector.inc_triggered()
+        logger.info(
+            "Alert triggered: %s",
+            message,
+            extra={"alert_id": new_id, "rule_id": rule["id"], "trace_id": trace_id},
+        )
