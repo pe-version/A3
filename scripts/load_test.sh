@@ -9,11 +9,13 @@
 #   • error rate  (non-2xx responses)
 #
 # Usage:
-#   ./scripts/load_test.sh                 # default: Go stack, all sizes
-#   ./scripts/load_test.sh --stack python   # Python stack
-#   ./scripts/load_test.sh --size small     # single size
+#   ./scripts/load_test.sh                          # default: Go stack, all sizes
+#   ./scripts/load_test.sh --stack python            # Python stack
+#   ./scripts/load_test.sh --size small              # single size
+#   ./scripts/load_test.sh --stack python --progression  # full progression:
+#       blocking (small → medium → large) then async (small → medium → large)
 #   PIPELINE_MODE=async WORKER_COUNT=4 docker compose up -d --build
-#   ./scripts/load_test.sh                 # re-run against async
+#   ./scripts/load_test.sh                          # re-run against async
 # ──────────────────────────────────────────────────────────────
 set -e
 
@@ -22,13 +24,15 @@ STACK="${STACK:-go}"          # "go" or "python"
 SIZE=""                       # "" = run all sizes
 TOKEN="${API_TOKEN:-your-secret-token}"
 RESULTS_DIR="results"
+PROGRESSION=false             # --progression: blocking then async
 
 # ── Parse flags ───────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --stack)  STACK="$2";  shift 2 ;;
-    --size)   SIZE="$2";   shift 2 ;;
-    *)        echo "Unknown flag: $1"; exit 1 ;;
+    --stack)        STACK="$2";  shift 2 ;;
+    --size)         SIZE="$2";   shift 2 ;;
+    --progression)  PROGRESSION=true; shift ;;
+    *)              echo "Unknown flag: $1"; exit 1 ;;
   esac
 done
 
@@ -225,6 +229,46 @@ run_load() {
   echo "$STACK,$size_name,$mode,$workers,$count,$processed_this_run,$elapsed_sec,$throughput,$avg_microseconds,$error_rate,$cpu_after,$mem_after" >> "$RESULTS_DIR/results.csv"
 }
 
+# ── Helpers: service lifecycle ────────────────────────────────
+check_services() {
+  echo ""
+  echo "Checking service health ..."
+  curl -sf -H "$(auth_header)" "$SENSOR_BASE/health" > /dev/null || { echo "ERROR: sensor service at $SENSOR_BASE not reachable"; exit 1; }
+  curl -sf -H "$(auth_header)" "$ALERT_BASE/health" > /dev/null || { echo "ERROR: alert service at $ALERT_BASE not reachable"; exit 1; }
+  curl -sf "$METRICS_URL" > /dev/null || { echo "ERROR: metrics endpoint at $METRICS_URL not reachable"; exit 1; }
+  echo "All services healthy."
+}
+
+restart_with_mode() {
+  local mode="$1"
+  local workers="${2:-4}"
+  echo ""
+  echo "══════════════════════════════════════════════════════════"
+  echo "  Restarting services in $mode mode (workers=$workers)"
+  echo "══════════════════════════════════════════════════════════"
+  PIPELINE_MODE="$mode" WORKER_COUNT="$workers" docker compose up -d --build 2>&1 | tail -5
+  echo "  Waiting for services to become healthy ..."
+  sleep 10
+  # Poll health for up to 60s
+  local elapsed=0
+  while [[ "$elapsed" -lt 60 ]]; do
+    if curl -sf -H "$(auth_header)" "$ALERT_BASE/health" > /dev/null 2>&1; then
+      echo "  Services ready."
+      return 0
+    fi
+    sleep 2
+    elapsed=$(( elapsed + 2 ))
+  done
+  echo "ERROR: services did not become healthy after restart"
+  exit 1
+}
+
+run_all_sizes() {
+  for s in small medium large; do
+    run_load "$s"
+  done
+}
+
 # ── Main ──────────────────────────────────────────────────────
 mkdir -p "$RESULTS_DIR"
 
@@ -239,22 +283,34 @@ echo "║  Stack: $STACK                                       ║"
 echo "║  Metrics: $METRICS_URL             ║"
 echo "╚═══════════════════════════════════════════════════╝"
 
-# Verify services are reachable
-echo ""
-echo "Checking service health ..."
-curl -sf -H "$(auth_header)" "$SENSOR_BASE/health" > /dev/null || { echo "ERROR: sensor service at $SENSOR_BASE not reachable"; exit 1; }
-curl -sf -H "$(auth_header)" "$ALERT_BASE/health" > /dev/null || { echo "ERROR: alert service at $ALERT_BASE not reachable"; exit 1; }
-curl -sf "$METRICS_URL" > /dev/null || { echo "ERROR: metrics endpoint at $METRICS_URL not reachable"; exit 1; }
-echo "All services healthy."
+if [[ "$PROGRESSION" == "true" ]]; then
+  # ── Progression mode ─────────────────────────────────────
+  # Step 1: Blocking baseline (sequential) across all sizes
+  restart_with_mode "blocking" 0
+  check_services
+  echo ""
+  echo "── Phase 1: Blocking (sequential) baseline ──"
+  run_all_sizes
 
-if [[ -n "$SIZE" ]]; then
-  run_load "$SIZE"
+  # Step 2: Transition to async pipeline
+  restart_with_mode "async" 4
+  check_services
+  echo ""
+  echo "── Phase 2: Async pipeline (4 workers) ──"
+  run_all_sizes
+
+  echo ""
+  echo "Progression complete. Results in $RESULTS_DIR/results.csv"
 else
-  for s in small medium large; do
-    run_load "$s"
-  done
+  # ── Single-mode run ──────────────────────────────────────
+  check_services
+  if [[ -n "$SIZE" ]]; then
+    run_load "$SIZE"
+  else
+    run_all_sizes
+  fi
+  echo ""
+  echo "Results appended to $RESULTS_DIR/results.csv"
 fi
 
-echo ""
-echo "Results appended to $RESULTS_DIR/results.csv"
 echo "Done."

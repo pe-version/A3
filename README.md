@@ -511,14 +511,27 @@ flowchart LR
 
 ### Load Test Results
 
-| Stack | Size | Mode | Throughput (events/s) | Avg Latency (µs) | Error Rate | CPU Peak | Memory |
-|-------|------|------|-----------------------|-------------------|------------|----------|--------|
-| Python | Small (50) | blocking | 37.3 | 21,479 | 0% | 0.22% | 43.1 MiB |
-| Python | Medium (500) | blocking | 41.8 | 23,843 | 0% | 0.27% | 43.5 MiB |
-| Python | Large (5000) | blocking | 41.6 | 24,160 | 0% | 5.39% | 44.8 MiB |
-| Python | Small (50) | async | 27.5 | 45,048 | 0% | 0.30% | 43.3 MiB |
-| Python | Medium (500) | async | 37.5 | 28,778 | 0% | 0.29% | 43.9 MiB |
-| Python | Large (5000) | async | 34.3 | 31,074 | 0% | 0.31% | 45.1 MiB |
+The tests follow a progression: start with the simple blocking pipeline, observe its behavior as data scales, then transition to the async pipeline to see whether concurrency improves throughput.
+
+#### Phase 1: Blocking (Sequential) Baseline
+
+| Stack | Size | Throughput (events/s) | Avg Latency (µs) | Error Rate | CPU Peak | Memory |
+|-------|------|-----------------------|-------------------|------------|----------|--------|
+| Python | Small (50) | 37.3 | 21,479 | 0% | 0.22% | 43.1 MiB |
+| Python | Medium (500) | 41.8 | 23,843 | 0% | 0.27% | 43.5 MiB |
+| Python | Large (5000) | 41.6 | 24,160 | 0% | 5.39% | 44.8 MiB |
+
+Blocking throughput plateaus at ~42 events/s regardless of dataset size. Latency is stable (~24ms). CPU spikes only at the large dataset. The sequential pipeline is predictable but cannot scale beyond the speed of a single evaluator.
+
+#### Phase 2: Async Pipeline (4 Workers)
+
+| Stack | Size | Throughput (events/s) | Avg Latency (µs) | Error Rate | CPU Peak | Memory |
+|-------|------|-----------------------|-------------------|------------|----------|--------|
+| Python | Small (50) | 27.5 | 45,048 | 0% | 0.30% | 43.3 MiB |
+| Python | Medium (500) | 37.5 | 28,778 | 0% | 0.29% | 43.9 MiB |
+| Python | Large (5000) | 34.3 | 31,074 | 0% | 0.31% | 45.1 MiB |
+
+Async is **slower** across all sizes — throughput drops and latency increases.
 
 ### Analysis
 
@@ -527,3 +540,29 @@ The async pipeline is slower than blocking in this implementation. The bottlenec
 This result is specific to the choice of storage backend, not a flaw in the async pattern itself. In a production system, the storage layer would be a database that supports concurrent writes (e.g., PostgreSQL, MySQL, or a distributed store like DynamoDB). With such a backend, the async workers would perform truly parallel I/O, and the throughput advantage of the async pipeline would materialize. The general principle: **async pipelines improve throughput when the bottleneck is parallelizable I/O; when the bottleneck serializes all access through a single lock, async adds overhead without benefit.**
 
 Go faces the same constraint. Earlier load test results that appeared to show async improvement in Go were an artifact of the sequential test sender being the bottleneck — both modes consumed events faster than they arrived, and async's goroutine overhead was negligible. Under concurrent load with SQLite as the backend, Go would exhibit the same write serialization.
+
+### Rerunning the Load Tests
+
+The full blocking→async progression can be reproduced in a single command:
+
+```bash
+export API_TOKEN=my-secret-token
+./scripts/load_test.sh --stack python --progression
+```
+
+This automatically:
+1. Starts services in **blocking** mode, runs small → medium → large
+2. Restarts services in **async** mode (4 workers), runs small → medium → large
+3. Appends all results to `results/results.csv`
+
+To run a single mode manually:
+
+```bash
+# Start in the desired mode
+PIPELINE_MODE=blocking WORKER_COUNT=0 docker compose up -d --build
+./scripts/load_test.sh --stack python
+
+# Or async
+PIPELINE_MODE=async WORKER_COUNT=4 docker compose up -d --build
+./scripts/load_test.sh --stack python
+```
