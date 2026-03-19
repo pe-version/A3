@@ -7,6 +7,7 @@ require (
 	github.com/google/uuid v1.5.0
 	github.com/mattn/go-sqlite3 v1.14.19
 	github.com/rabbitmq/amqp091-go v1.9.0
+	github.com/reactivex/rxgo/v2 v2.5.0
 	github.com/sony/gobreaker v0.5.0
 )
 

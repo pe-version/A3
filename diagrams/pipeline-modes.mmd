@@ -1,5 +1,5 @@
 ---
-title: "Pipeline Modes: Blocking vs Async"
+title: "Pipeline Modes: Blocking vs Reactive"
 ---
 flowchart LR
     subgraph Blocking["Blocking Mode"]
@@ -10,14 +10,14 @@ flowchart LR
         B_Ack -->|next message| B_RMQ
     end
 
-    subgraph Async["Async Mode"]
+    subgraph Reactive["Reactive Mode (RxPY / RxGo)"]
         direction TB
         A_RMQ["RabbitMQ\n(prefetch=10)"] -->|deliver| A_Consumer["Consumer"]
-        A_Consumer -->|enqueue\n(blocks if full)| A_Queue["Bounded Queue\n(workers × 10)"]
+        A_Consumer -->|on_next(event)| A_Subject["Subject / Observable"]
         A_Consumer -->|ack immediately| A_RMQ
-        A_Queue --> A_W1["Worker 1"]
-        A_Queue --> A_W2["Worker 2"]
-        A_Queue --> A_WN["Worker N"]
+        A_Subject -->|"flat_map\n(max_concurrent=N)"| A_W1["Worker 1"]
+        A_Subject -->|"flat_map\n(max_concurrent=N)"| A_W2["Worker 2"]
+        A_Subject -->|"flat_map\n(max_concurrent=N)"| A_WN["Worker N"]
         A_W1 -->|write| A_DB[("SQLite\n(serialized writes)")]
         A_W2 -->|write| A_DB
         A_WN -->|write| A_DB

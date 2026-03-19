@@ -482,7 +482,7 @@ The alert service supports two pipeline modes, configurable via `PIPELINE_MODE`:
 
 ```mermaid
 ---
-title: "Pipeline Modes: Blocking vs Async"
+title: "Pipeline Modes: Blocking vs Reactive"
 ---
 flowchart LR
     subgraph Blocking["Blocking Mode"]
@@ -493,25 +493,25 @@ flowchart LR
         B_Ack -->|next message| B_RMQ
     end
 
-    subgraph Async["Async Mode"]
+    subgraph Reactive["Reactive Mode (RxPY / RxGo)"]
         direction TB
         A_RMQ["RabbitMQ\n(prefetch=10)"] -->|deliver| A_Consumer["Consumer"]
-        A_Consumer -->|enqueue\n(blocks if full)| A_Queue["Bounded Queue\n(workers × 10)"]
+        A_Consumer -->|"on_next(event)"| A_Subject["Subject / Observable"]
         A_Consumer -->|ack immediately| A_RMQ
-        A_Queue --> A_W1["Worker 1"]
-        A_Queue --> A_W2["Worker 2"]
-        A_Queue --> A_WN["Worker N"]
+        A_Subject -->|"flat_map\n(max_concurrent=N)"| A_W1["Worker 1"]
+        A_Subject -->|"flat_map\n(max_concurrent=N)"| A_W2["Worker 2"]
+        A_Subject -->|"flat_map\n(max_concurrent=N)"| A_WN["Worker N"]
         A_W1 -->|write| A_DB[("SQLite\n(serialized writes)")]
         A_W2 -->|write| A_DB
         A_WN -->|write| A_DB
     end
 ```
 
-**Blocking mode:** Messages are evaluated inline before being acknowledged — sequential, strong at-least-once guarantee. **Async mode:** Messages are enqueued to a bounded queue and acked immediately; a worker pool drains the queue concurrently. The bounded queue provides backpressure: when full, the consumer blocks until a worker frees a slot, preventing unbounded memory growth.
+**Blocking mode:** Messages are evaluated inline before being acknowledged — sequential, strong at-least-once guarantee. **Reactive mode:** Messages are emitted into an RxPY `Subject` (Python) or RxGo `Observable` (Go). The `flat_map` operator fans out evaluation to up to `WORKER_COUNT` concurrent tasks/goroutines. Backpressure is provided by `flat_map`'s `max_concurrent` parameter — when all slots are occupied, new events wait until an evaluation completes.
 
 ### Load Test Results
 
-The tests follow a progression: start with the simple blocking pipeline, observe its behavior as data scales, then transition to the async pipeline to see whether concurrency improves throughput.
+The tests follow a progression: start with the simple blocking pipeline, observe its behavior as data scales, then transition to the reactive pipeline to see whether concurrency improves throughput.
 
 #### Phase 1: Blocking (Sequential) Baseline
 
@@ -523,7 +523,7 @@ The tests follow a progression: start with the simple blocking pipeline, observe
 
 Blocking throughput plateaus at ~42 events/s regardless of dataset size. Latency is stable (~24ms). CPU spikes only at the large dataset. The sequential pipeline is predictable but cannot scale beyond the speed of a single evaluator.
 
-#### Phase 2: Async Pipeline (4 Workers)
+#### Phase 2: Reactive Pipeline (4 Workers)
 
 | Stack | Size | Throughput (events/s) | Avg Latency (µs) | Error Rate | CPU Peak | Memory |
 |-------|------|-----------------------|-------------------|------------|----------|--------|
@@ -531,15 +531,15 @@ Blocking throughput plateaus at ~42 events/s regardless of dataset size. Latency
 | Python | Medium (500) | 37.5 | 28,778 | 0% | 0.29% | 43.9 MiB |
 | Python | Large (5000) | 34.3 | 31,074 | 0% | 0.31% | 45.1 MiB |
 
-Async is **slower** across all sizes — throughput drops and latency increases.
+The reactive pipeline is **slower** across all sizes — throughput drops and latency increases.
 
 ### Analysis
 
-The async pipeline is slower than blocking in this implementation. The bottleneck is SQLite: it serializes writes at the filesystem level, so the 4 async workers contend on the same database file without achieving actual parallelism. Instead of speeding things up, the workers add lock contention overhead — more time is spent waiting for the database lock than doing useful work. Blocking mode avoids this entirely by processing events one at a time with no contention.
+The reactive pipeline is slower than blocking in this implementation. The bottleneck is SQLite: it serializes writes at the filesystem level, so the 4 reactive workers (dispatched via `flat_map`) contend on the same database file without achieving actual parallelism. Instead of speeding things up, the workers add lock contention overhead — more time is spent waiting for the database lock than doing useful work. Blocking mode avoids this entirely by processing events one at a time with no contention.
 
-This result is specific to the choice of storage backend, not a flaw in the async pattern itself. In a production system, the storage layer would be a database that supports concurrent writes (e.g., PostgreSQL, MySQL, or a distributed store like DynamoDB). With such a backend, the async workers would perform truly parallel I/O, and the throughput advantage of the async pipeline would materialize. The general principle: **async pipelines improve throughput when the bottleneck is parallelizable I/O; when the bottleneck serializes all access through a single lock, async adds overhead without benefit.**
+This result is specific to the choice of storage backend, not a flaw in the reactive pattern itself. In a production system, the storage layer would be a database that supports concurrent writes (e.g., PostgreSQL, MySQL, or a distributed store like DynamoDB). With such a backend, the reactive workers would perform truly parallel I/O, and the throughput advantage of the reactive pipeline would materialize. The general principle: **reactive pipelines improve throughput when the bottleneck is parallelizable I/O; when the bottleneck serializes all access through a single lock, concurrency adds overhead without benefit.**
 
-Go faces the same constraint. Earlier load test results that appeared to show async improvement in Go were an artifact of the sequential test sender being the bottleneck — both modes consumed events faster than they arrived, and async's goroutine overhead was negligible. Under concurrent load with SQLite as the backend, Go would exhibit the same write serialization.
+Go faces the same constraint. Earlier load test results that appeared to show reactive improvement in Go were an artifact of the sequential test sender being the bottleneck — both modes consumed events faster than they arrived, and RxGo's goroutine overhead was negligible. Under concurrent load with SQLite as the backend, Go would exhibit the same write serialization.
 
 ### Rerunning the Load Tests
 

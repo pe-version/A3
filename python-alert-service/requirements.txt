@@ -5,6 +5,7 @@ python-dotenv==1.0.0
 httpx==0.26.0
 aio-pika==9.4.0
 aiosqlite==0.20.0
+reactivex==4.0.4
 pybreaker==1.2.0
 tenacity==8.2.3
 pytest==8.0.0

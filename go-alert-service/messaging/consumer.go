@@ -1,11 +1,13 @@
 package messaging
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/reactivex/rxgo/v2"
 
 	"iot-alert-service/metrics"
 )
@@ -25,8 +27,9 @@ type SensorEvent struct {
 type AlertConsumer struct {
 	url      string
 	callback func(SensorEvent)
-	// async pipeline fields; nil when running in blocking mode
-	eventCh chan SensorEvent
+	// Reactive pipeline fields; nil when running in blocking mode.
+	eventCh     chan SensorEvent
+	workerCount int
 }
 
 // NewAlertConsumer creates a new alert consumer in blocking mode.
@@ -34,37 +37,64 @@ func NewAlertConsumer(url string, callback func(SensorEvent)) *AlertConsumer {
 	return &AlertConsumer{url: url, callback: callback}
 }
 
-// NewAsyncAlertConsumer creates a consumer that dispatches events to a
-// buffered worker pool. workerCount goroutines drain the channel; when the
-// channel is full the consumer blocks (backpressure).
+// NewAsyncAlertConsumer creates a consumer that dispatches events through an
+// RxGo reactive pipeline. Events are sent to a buffered channel; RxGo's
+// FlatMap with WithPool(workerCount) fans out evaluation to concurrent
+// goroutines. Backpressure: when the channel buffer is full, the producer
+// blocks until a slot frees up.
 func NewAsyncAlertConsumer(url string, callback func(SensorEvent), workerCount int) *AlertConsumer {
-	// Buffer = workerCount * 10 gives workers headroom without unbounded queuing.
 	ch := make(chan SensorEvent, workerCount*10)
-	c := &AlertConsumer{url: url, callback: callback, eventCh: ch}
-	for i := 0; i < workerCount; i++ {
-		go c.worker()
-	}
+	c := &AlertConsumer{url: url, callback: callback, eventCh: ch, workerCount: workerCount}
+	c.startReactivePipeline()
 	return c
 }
 
-func (c *AlertConsumer) worker() {
-	for event := range c.eventCh {
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					slog.Error("Worker panic recovered", "error", r, "sensor_id", event.SensorID)
-				}
-			}()
-			c.callback(event)
-		}()
-	}
+// startReactivePipeline wires the channel into an RxGo Observable with
+// FlatMap for concurrent evaluation.
+func (c *AlertConsumer) startReactivePipeline() {
+	// Adapt typed chan to chan rxgo.Item for FromChannel.
+	itemCh := make(chan rxgo.Item, cap(c.eventCh))
+	go func() {
+		for event := range c.eventCh {
+			itemCh <- rxgo.Of(event)
+		}
+		close(itemCh)
+	}()
+
+	observable := rxgo.FromChannel(itemCh).Pipe(
+		// FlatMap fans out each event to a pool of goroutines.
+		// WithPool limits concurrency — this is the reactive backpressure.
+		rxgo.FlatMap(func(item rxgo.Item) rxgo.Observable {
+			event := item.V.(SensorEvent)
+			return rxgo.Defer([]rxgo.Producer{func(_ context.Context, next chan<- rxgo.Item) {
+				func() {
+					defer func() {
+						if r := recover(); r != nil {
+							slog.Error("Reactive worker panic recovered", "error", r, "sensor_id", event.SensorID)
+						}
+					}()
+					c.callback(event)
+				}()
+				next <- rxgo.Of(event)
+			}})
+		}, rxgo.WithPool(c.workerCount)),
+	)
+
+	// Subscribe in a background goroutine to drain the observable.
+	go func() {
+		<-observable.ForEach(
+			func(_ interface{}) {},
+			func(err error) { slog.Error("Reactive pipeline error", "error", err.Error()) },
+			func() { slog.Info("Reactive pipeline completed") },
+		)
+	}()
 }
 
 // Start begins consuming in a background goroutine with reconnect logic.
 func (c *AlertConsumer) Start() {
 	mode := "blocking"
 	if c.eventCh != nil {
-		mode = "async"
+		mode = "reactive"
 	}
 	go c.consumeLoop()
 	slog.Info("Alert consumer started", "mode", mode)
@@ -136,7 +166,7 @@ func (c *AlertConsumer) consume() error {
 			slog.Info("Received sensor.updated event",
 				"sensor_id", event.SensorID, "value", event.Value, "trace_id", event.TraceID)
 			if c.eventCh != nil {
-				// Async: send to worker pool; blocks if channel is full (backpressure).
+				// Reactive: send to RxGo pipeline; blocks if channel is full (backpressure).
 				c.eventCh <- event
 			} else {
 				// Blocking: evaluate inline before acking.
