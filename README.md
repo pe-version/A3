@@ -472,7 +472,7 @@ Note: `duration_ms=3148` reflects 3 × ~1s retry backoff before falling back —
 | `PIPELINE_MODE` | `blocking` | Pipeline mode: `blocking` or `async` |
 | `WORKER_COUNT` | `4` | Worker pool size (used in async mode) |
 
-## A3: Performance Analysis (Placeholder)
+## A3: Performance Analysis
 
 ### Load Test Results
 
@@ -487,6 +487,8 @@ Note: `duration_ms=3148` reflects 3 × ~1s retry backoff before falling back —
 
 ### Analysis
 
-In the Python implementation's case, async is slower than blocking, and since SQLite is the storage backend, that should not be surprising. The 4 async workers contend on the same database file, as SQLite serializes writes at the level of the filesystem, preventing actual parallelism and causing the async workers to create pointless lock contention overhead. If parallelizable I/O is the bottleneck, asynchronous pipelines improve throughput; otherwise they worsen it. In the case of Go, the earlier load test results showing async improvement were an artifact of the sequential test sender being the bottleneck — both modes kept up easily, and async's goroutine overhead was negligible. Under concurrent load, Go would face the same SQLite write serialization.
+The async pipeline is slower than blocking in this implementation. The bottleneck is SQLite: it serializes writes at the filesystem level, so the 4 async workers contend on the same database file without achieving actual parallelism. Instead of speeding things up, the workers add lock contention overhead — more time is spent waiting for the database lock than doing useful work. Blocking mode avoids this entirely by processing events one at a time with no contention.
 
-*Full analysis pending — will be completed after discussion with professor regarding alternative storage backends.*
+This result is specific to the choice of storage backend, not a flaw in the async pattern itself. In a production system, the storage layer would be a database that supports concurrent writes (e.g., PostgreSQL, MySQL, or a distributed store like DynamoDB). With such a backend, the async workers would perform truly parallel I/O, and the throughput advantage of the async pipeline would materialize. The general principle: **async pipelines improve throughput when the bottleneck is parallelizable I/O; when the bottleneck serializes all access through a single lock, async adds overhead without benefit.**
+
+Go faces the same constraint. Earlier load test results that appeared to show async improvement in Go were an artifact of the sequential test sender being the bottleneck — both modes consumed events faster than they arrived, and async's goroutine overhead was negligible. Under concurrent load with SQLite as the backend, Go would exhibit the same write serialization.
