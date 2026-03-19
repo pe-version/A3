@@ -48,8 +48,10 @@ def init_database() -> None:
 
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    conn = sqlite3.connect(settings.database_path)
+    conn = sqlite3.connect(settings.database_path, check_same_thread=False)
     try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         conn.executescript(SCHEMA)
         conn.commit()
 
@@ -98,7 +100,9 @@ def seed_from_json(conn: sqlite3.Connection, json_path: str) -> None:
 def get_db_connection() -> Generator[sqlite3.Connection, None, None]:
     """Yield a database connection for the request lifecycle."""
     settings = get_settings()
-    conn = sqlite3.connect(settings.database_path)
+    conn = sqlite3.connect(settings.database_path, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     conn.row_factory = sqlite3.Row
     try:
         yield conn

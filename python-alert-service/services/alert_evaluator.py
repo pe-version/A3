@@ -1,12 +1,12 @@
 """Alert evaluation service — processes sensor events against rules."""
 
 import logging
-import sqlite3
 import time
+from datetime import datetime, timezone
+
+import aiosqlite
 
 from metrics import server as metrics_server
-from repositories.alert_rule_repository import AlertRuleRepository
-from repositories.triggered_alert_repository import TriggeredAlertRepository
 
 logger = logging.getLogger("alert_service")
 
@@ -22,14 +22,24 @@ OPERATORS = {
 class AlertEvaluator:
     """Evaluates sensor update events against active alert rules.
 
-    Opens its own database connection since it runs in the consumer
-    thread, separate from the FastAPI request lifecycle.
+    Uses aiosqlite for non-blocking database access so evaluation
+    can run in the asyncio event loop alongside the aio-pika consumer.
     """
 
     def __init__(self, db_path: str):
         self.db_path = db_path
+        self._db: aiosqlite.Connection | None = None
 
-    def evaluate(self, event: dict) -> None:
+    async def _get_db(self) -> aiosqlite.Connection:
+        """Return a persistent connection, creating it on first use."""
+        if self._db is None:
+            self._db = await aiosqlite.connect(self.db_path)
+            await self._db.execute("PRAGMA journal_mode=WAL")
+            await self._db.execute("PRAGMA busy_timeout=5000")
+            self._db.row_factory = aiosqlite.Row
+        return self._db
+
+    async def evaluate(self, event: dict) -> None:
         """Evaluate a sensor.updated event against active rules.
 
         Args:
@@ -44,38 +54,46 @@ class AlertEvaluator:
             logger.warning("Received incomplete sensor event: %s", event)
             return
 
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
+        db = await self._get_db()
         try:
-            rule_repo = AlertRuleRepository(conn)
-            alert_repo = TriggeredAlertRepository(conn)
+            cursor = await db.execute(
+                "SELECT id, sensor_id, metric, operator, threshold, name, status, created_at, updated_at "
+                "FROM alert_rules WHERE sensor_id = ? AND status = 'active' ORDER BY id",
+                (sensor_id,),
+            )
+            rules = await cursor.fetchall()
 
-            active_rules = rule_repo.get_active_rules_for_sensor(sensor_id)
-
-            for rule in active_rules:
-                op_func = OPERATORS.get(rule.operator)
-                if op_func and op_func(sensor_value, rule.threshold):
+            for rule in rules:
+                op_func = OPERATORS.get(rule["operator"])
+                if op_func and op_func(sensor_value, rule["threshold"]):
                     message = (
                         f"Sensor {sensor_id} value {sensor_value} "
-                        f"{rule.operator} threshold {rule.threshold} "
-                        f"(rule: {rule.name})"
+                        f"{rule['operator']} threshold {rule['threshold']} "
+                        f"(rule: {rule['name']})"
                     )
-                    alert = alert_repo.create(
-                        rule_id=rule.id,
-                        sensor_id=sensor_id,
-                        sensor_value=sensor_value,
-                        threshold=rule.threshold,
-                        message=message,
+
+                    id_cursor = await db.execute(
+                        "SELECT MAX(CAST(SUBSTR(id, 7) AS INTEGER)) FROM triggered_alerts WHERE id LIKE 'alert-%'"
                     )
+                    max_num = (await id_cursor.fetchone())[0] or 0
+                    new_id = f"alert-{max_num + 1:03d}"
+                    now = datetime.now(timezone.utc).isoformat()
+
+                    await db.execute(
+                        "INSERT INTO triggered_alerts (id, rule_id, sensor_id, sensor_value, threshold, message, status, created_at) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        (new_id, rule["id"], sensor_id, sensor_value, rule["threshold"], message, "open", now),
+                    )
+                    await db.commit()
+
                     if metrics_server.collector is not None:
                         metrics_server.collector.inc_triggered()
                     logger.info(
                         "Alert triggered: %s",
                         message,
-                        extra={"alert_id": alert.id, "rule_id": rule.id, "trace_id": trace_id},
+                        extra={"alert_id": new_id, "rule_id": rule["id"], "trace_id": trace_id},
                     )
         finally:
             if metrics_server.collector is not None:
                 metrics_server.collector.record_processing_duration(start)
                 metrics_server.collector.inc_processed()
-            conn.close()

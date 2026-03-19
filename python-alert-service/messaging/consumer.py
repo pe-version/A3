@@ -1,12 +1,10 @@
-"""RabbitMQ consumer for sensor update events."""
+"""RabbitMQ consumer for sensor update events using aio-pika (asyncio)."""
 
+import asyncio
 import json
 import logging
-import queue
-import threading
-import time
 
-import pika
+import aio_pika
 
 from metrics import server as metrics_server
 
@@ -14,17 +12,18 @@ logger = logging.getLogger("alert_service")
 
 
 class AlertConsumer:
-    """Consumes sensor.updated events from RabbitMQ.
+    """Consumes sensor.updated events from RabbitMQ via aio-pika.
 
-    Blocking mode: each message is evaluated inline in the consumer thread
-    before the next message is fetched (sequential, strong at-least-once).
+    Blocking mode (worker_count=0): each message is evaluated inline in the
+    consumer coroutine before the next message is fetched — sequential,
+    strong at-least-once.
 
-    Async mode: messages are placed onto a thread-safe queue; a pool of
-    worker threads drains it in parallel. The consumer acks immediately after
-    enqueuing, so a crash between ack and evaluation drops the event — higher
-    throughput at the cost of a weaker delivery guarantee.
-    Backpressure: when the queue is full, put() blocks the consumer thread
-    until a worker frees a slot.
+    Async mode (worker_count>0): messages are placed onto an asyncio.Queue;
+    a pool of worker tasks drains it concurrently. The consumer acks
+    immediately after enqueuing, so a crash between ack and evaluation
+    drops the event — higher throughput at the cost of a weaker delivery
+    guarantee. Backpressure: when the queue is full, put() awaits until
+    a worker frees a slot.
     """
 
     def __init__(self, rabbitmq_url: str, callback, worker_count: int = 0):
@@ -32,91 +31,102 @@ class AlertConsumer:
 
         Args:
             rabbitmq_url: AMQP connection URL.
-            callback: Function to call with each sensor event dict.
-            worker_count: Number of worker threads for async mode.
+            callback: Async callable to invoke with each sensor event dict.
+            worker_count: Number of worker tasks for async mode.
                           0 means blocking mode (no worker pool).
         """
         self.rabbitmq_url = rabbitmq_url
         self.callback = callback
-        self._thread = None
+        self.worker_count = worker_count
 
         if worker_count > 0:
             # Buffer = worker_count * 10 gives workers headroom without unbounded queuing.
-            self._event_queue = queue.Queue(maxsize=worker_count * 10)
+            self._event_queue: asyncio.Queue | None = asyncio.Queue(
+                maxsize=worker_count * 10
+            )
             self._mode = "async"
-            for _ in range(worker_count):
-                t = threading.Thread(target=self._worker, daemon=True)
-                t.start()
         else:
             self._event_queue = None
             self._mode = "blocking"
 
-    def _worker(self):
-        """Pull events from the queue and evaluate them."""
-        for event in iter(self._event_queue.get, None):
-            self.callback(event)
-            self._event_queue.task_done()
-
     def start(self):
-        """Start consuming in a background daemon thread."""
-        self._thread = threading.Thread(target=self._consume_loop, daemon=True)
-        self._thread.start()
+        """Schedule the consumer loop as an asyncio task."""
+        loop = asyncio.get_event_loop()
+        loop.create_task(self._run_workers_and_consumer())
         logger.info("Alert consumer started", extra={"mode": self._mode})
 
-    def _consume_loop(self):
-        """Reconnect loop — retries on connection failure."""
+    async def _run_workers_and_consumer(self):
+        """Start worker tasks (if async) then enter the consume loop."""
+        if self._event_queue is not None:
+            for _ in range(self.worker_count):
+                asyncio.create_task(self._worker())
+
         while True:
             try:
-                self._consume()
+                await self._consume()
             except Exception as e:
-                logger.error("Consumer connection lost: %s — reconnecting in 5s", str(e))
-                time.sleep(5)
+                logger.error(
+                    "Consumer connection lost: %s — reconnecting in 5s", str(e)
+                )
+                await asyncio.sleep(5)
 
-    def _consume(self):
+    async def _worker(self):
+        """Pull events from the queue and evaluate them."""
+        while True:
+            event = await self._event_queue.get()
+            try:
+                await self.callback(event)
+            finally:
+                self._event_queue.task_done()
+
+    async def _consume(self):
         """Connect to RabbitMQ and consume sensor.updated events."""
-        params = pika.URLParameters(self.rabbitmq_url)
-        connection = pika.BlockingConnection(params)
-        channel = connection.channel()
+        connection = await aio_pika.connect_robust(self.rabbitmq_url)
+        async with connection:
+            channel = await connection.channel()
 
-        channel.exchange_declare(exchange="sensor_events", exchange_type="fanout", durable=True)
-        channel.queue_declare(queue="alert_service_python", durable=True)
-        channel.queue_bind(exchange="sensor_events", queue="alert_service_python")
+            # Prefetch limits how many unacked messages RabbitMQ sends at once.
+            await channel.set_qos(prefetch_count=10)
 
-        logger.info("Connected to RabbitMQ, waiting for sensor events")
+            exchange = await channel.declare_exchange(
+                "sensor_events", aio_pika.ExchangeType.FANOUT, durable=True
+            )
+            queue = await channel.declare_queue(
+                "alert_service_python", durable=True
+            )
+            await queue.bind(exchange)
 
-        # auto_ack=False: ack only after successful processing so messages are
-        # not lost if the evaluator crashes mid-flight.
-        channel.basic_consume(
-            queue="alert_service_python",
-            on_message_callback=self._on_message,
-            auto_ack=False,
-        )
-        channel.start_consuming()
+            logger.info("Connected to RabbitMQ, waiting for sensor events")
 
-    def _on_message(self, ch, method, properties, body):
+            async with queue.iterator() as queue_iter:
+                async for message in queue_iter:
+                    await self._on_message(message)
+
+    async def _on_message(self, message: aio_pika.IncomingMessage):
         """Handle incoming message."""
         try:
-            event = json.loads(body)
-            if event.get("event") == "sensor.updated":
-                if metrics_server.collector is not None:
-                    metrics_server.collector.inc_received()
-                logger.info(
-                    "Received sensor.updated event",
-                    extra={
-                        "sensor_id": event.get("sensor_id"),
-                        "value": event.get("value"),
-                        "trace_id": event.get("trace_id"),
-                    },
-                )
-                if self._event_queue is not None:
-                    # Async: enqueue for worker pool; blocks if queue is full (backpressure).
-                    self._event_queue.put(event)
-                else:
-                    # Blocking: evaluate inline before acking.
-                    self.callback(event)
-            # Ack after dispatch (including unknown event types).
-            ch.basic_ack(delivery_tag=method.delivery_tag)
+            event = json.loads(message.body)
         except json.JSONDecodeError:
             logger.warning("Received invalid JSON message")
-            # Nack without requeue — malformed messages cannot be retried usefully.
-            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+            await message.nack(requeue=False)
+            return
+
+        if event.get("event") == "sensor.updated":
+            if metrics_server.collector is not None:
+                metrics_server.collector.inc_received()
+            logger.info(
+                "Received sensor.updated event",
+                extra={
+                    "sensor_id": event.get("sensor_id"),
+                    "value": event.get("value"),
+                    "trace_id": event.get("trace_id"),
+                },
+            )
+            if self._event_queue is not None:
+                # Async: enqueue for worker pool; awaits if queue is full (backpressure).
+                await self._event_queue.put(event)
+            else:
+                # Blocking: evaluate inline before acking.
+                await self.callback(event)
+
+        await message.ack()

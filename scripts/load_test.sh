@@ -110,29 +110,45 @@ run_load() {
   local stats_before
   stats_before=$(capture_docker_stats)
 
-  # Fire sensor updates as fast as possible
-  local errors=0
+  # Fire sensor updates concurrently using xargs -P for parallelism.
+  local concurrency="${CONCURRENCY:-10}"
+  local error_file
+  error_file=$(mktemp)
+
   local start_time
   start_time=$(date +%s%N)
 
-  echo "  Sending $count PUT requests to $SENSOR_BASE/sensors/sensor-001 ..."
+  echo "  Sending $count PUT requests to $SENSOR_BASE/sensors/sensor-001 (concurrency=$concurrency) ..."
 
-  for i in $(seq 1 "$count"); do
-    # Alternate values above the threshold (81-99) to ensure each triggers
-    local value
-    value=$(( 81 + (i % 19) ))
+  # Export vars so subshells can access them.
+  export LOAD_TOKEN="$TOKEN"
+  export LOAD_SENSOR_BASE="$SENSOR_BASE"
+  export LOAD_ERROR_FILE="$error_file"
+
+  send_one() {
+    local i="$1"
+    local value=$(( 81 + (i % 19) ))
     local http_code
     http_code=$(curl -s -o /dev/null -w "%{http_code}" \
       -X PUT \
-      -H "$(auth_header)" \
+      -H "Authorization: Bearer $LOAD_TOKEN" \
       -H "Content-Type: application/json" \
       -d "{\"value\": ${value}.0}" \
-      "$SENSOR_BASE/sensors/sensor-001")
-
+      "$LOAD_SENSOR_BASE/sensors/sensor-001")
     if [[ "$http_code" -lt 200 || "$http_code" -ge 300 ]]; then
-      errors=$(( errors + 1 ))
+      # Append is atomic on POSIX for writes < PIPE_BUF (4096 bytes).
+      echo 1 >> "$LOAD_ERROR_FILE"
     fi
-  done
+  }
+  export -f send_one
+
+  seq 1 "$count" | xargs -P "$concurrency" -n1 bash -c 'send_one "$1"' _
+
+  local errors=0
+  if [[ -s "$error_file" ]]; then
+    errors=$(wc -l < "$error_file")
+  fi
+  rm -f "$error_file"
 
   local end_time
   end_time=$(date +%s%N)

@@ -469,3 +469,24 @@ Note: `duration_ms=3148` reflects 3 × ~1s retry backoff before falling back —
 | `RABBITMQ_URL` | `amqp://iot_service:iot_secret@rabbitmq:5672/` | RabbitMQ URL |
 | `CB_FAIL_MAX` | `5` | Circuit breaker failure threshold |
 | `CB_RESET_TIMEOUT` | `30` | Circuit breaker reset timeout (seconds) |
+| `PIPELINE_MODE` | `blocking` | Pipeline mode: `blocking` or `async` |
+| `WORKER_COUNT` | `4` | Worker pool size (used in async mode) |
+
+## A3: Performance Analysis (Placeholder)
+
+### Load Test Results
+
+| Stack | Size | Mode | Throughput (events/s) | Avg Latency (µs) | Error Rate |
+|-------|------|------|-----------------------|-------------------|------------|
+| Python | Small (50) | blocking | 37.3 | 21,479 | 0% |
+| Python | Medium (500) | blocking | 41.8 | 23,843 | 0% |
+| Python | Large (5000) | blocking | 41.6 | 24,160 | 0% |
+| Python | Small (50) | async | 27.5 | 45,048 | 0% |
+| Python | Medium (500) | async | 37.5 | 28,778 | 0% |
+| Python | Large (5000) | async | 34.3 | 31,074 | 0% |
+
+### Analysis
+
+In the Python implementation's case, async is slower than blocking, and since SQLite is the storage backend, that should not be surprising. The 4 async workers contend on the same database file, as SQLite serializes writes at the level of the filesystem, preventing actual parallelism and causing the async workers to create pointless lock contention overhead. If parallelizable I/O is the bottleneck, asynchronous pipelines improve throughput; otherwise they worsen it. In the case of Go, the earlier load test results showing async improvement were an artifact of the sequential test sender being the bottleneck — both modes kept up easily, and async's goroutine overhead was negligible. Under concurrent load, Go would face the same SQLite write serialization.
+
+*Full analysis pending — will be completed after discussion with professor regarding alternative storage backends.*

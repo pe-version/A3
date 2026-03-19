@@ -54,14 +54,14 @@ def setup_logging() -> logging.Logger:
                     "message": record.getMessage(),
                 }
                 # Add extra fields if present
-                if hasattr(record, "method"):
-                    log_obj["method"] = record.method
-                if hasattr(record, "path"):
-                    log_obj["path"] = record.path
-                if hasattr(record, "status"):
-                    log_obj["status"] = record.status
-                if hasattr(record, "duration_ms"):
-                    log_obj["duration_ms"] = record.duration_ms
+                for field in (
+                    "method", "path", "status", "duration_ms",
+                    "sensor_id", "value", "trace_id",
+                    "alert_id", "rule_id", "mode",
+                ):
+                    val = getattr(record, field, None)
+                    if val is not None:
+                        log_obj[field] = val
                 return json.dumps(log_obj)
 
         handler.setFormatter(JsonFormatter(datefmt="%Y-%m-%dT%H:%M:%S"))
