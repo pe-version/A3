@@ -49,7 +49,14 @@ func NewAsyncAlertConsumer(url string, callback func(SensorEvent), workerCount i
 
 func (c *AlertConsumer) worker() {
 	for event := range c.eventCh {
-		c.callback(event)
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("Worker panic recovered", "error", r, "sensor_id", event.SensorID)
+				}
+			}()
+			c.callback(event)
+		}()
 	}
 }
 

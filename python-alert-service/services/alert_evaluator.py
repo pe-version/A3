@@ -2,6 +2,7 @@
 
 import logging
 import time
+import uuid
 from datetime import datetime, timezone
 
 import aiosqlite
@@ -24,20 +25,20 @@ class AlertEvaluator:
 
     Uses aiosqlite for non-blocking database access so evaluation
     can run in the asyncio event loop alongside the aio-pika consumer.
+    Each call to evaluate() opens its own connection so that concurrent
+    async workers do not share a single connection.
     """
 
     def __init__(self, db_path: str):
         self.db_path = db_path
-        self._db: aiosqlite.Connection | None = None
 
-    async def _get_db(self) -> aiosqlite.Connection:
-        """Return a persistent connection, creating it on first use."""
-        if self._db is None:
-            self._db = await aiosqlite.connect(self.db_path)
-            await self._db.execute("PRAGMA journal_mode=WAL")
-            await self._db.execute("PRAGMA busy_timeout=5000")
-            self._db.row_factory = aiosqlite.Row
-        return self._db
+    async def _open_db(self) -> aiosqlite.Connection:
+        """Open a new database connection with WAL mode and busy timeout."""
+        db = await aiosqlite.connect(self.db_path)
+        await db.execute("PRAGMA journal_mode=WAL")
+        await db.execute("PRAGMA busy_timeout=5000")
+        db.row_factory = aiosqlite.Row
+        return db
 
     async def evaluate(self, event: dict) -> None:
         """Evaluate a sensor.updated event against active rules.
@@ -54,7 +55,7 @@ class AlertEvaluator:
             logger.warning("Received incomplete sensor event: %s", event)
             return
 
-        db = await self._get_db()
+        db = await self._open_db()
         try:
             cursor = await db.execute(
                 "SELECT id, sensor_id, metric, operator, threshold, name, status, created_at, updated_at "
@@ -72,11 +73,7 @@ class AlertEvaluator:
                         f"(rule: {rule['name']})"
                     )
 
-                    id_cursor = await db.execute(
-                        "SELECT MAX(CAST(SUBSTR(id, 7) AS INTEGER)) FROM triggered_alerts WHERE id LIKE 'alert-%'"
-                    )
-                    max_num = (await id_cursor.fetchone())[0] or 0
-                    new_id = f"alert-{max_num + 1:03d}"
+                    new_id = f"alert-{uuid.uuid4().hex[:8]}"
                     now = datetime.now(timezone.utc).isoformat()
 
                     await db.execute(
@@ -94,6 +91,7 @@ class AlertEvaluator:
                         extra={"alert_id": new_id, "rule_id": rule["id"], "trace_id": trace_id},
                     )
         finally:
+            await db.close()
             if metrics_server.collector is not None:
                 metrics_server.collector.record_processing_duration(start)
                 metrics_server.collector.inc_processed()

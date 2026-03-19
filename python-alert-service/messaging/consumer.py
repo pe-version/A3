@@ -76,6 +76,8 @@ class AlertConsumer:
             event = await self._event_queue.get()
             try:
                 await self.callback(event)
+            except Exception:
+                logger.exception("Worker failed to evaluate event: %s", event)
             finally:
                 self._event_queue.task_done()
 
