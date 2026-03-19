@@ -101,6 +101,12 @@ func (c *AlertConsumer) consume() error {
 		return err
 	}
 
+	// Prefetch limits how many unacked messages RabbitMQ sends at once.
+	err = ch.Qos(10, 0, false)
+	if err != nil {
+		return err
+	}
+
 	// autoAck=false: ack only after successful processing so messages are
 	// not lost if the evaluator crashes mid-flight.
 	msgs, err := ch.Consume(q.Name, "", false, false, false, false, nil)

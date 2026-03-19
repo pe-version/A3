@@ -474,16 +474,51 @@ Note: `duration_ms=3148` reflects 3 × ~1s retry backoff before falling back —
 
 ## A3: Performance Analysis
 
+### Pipeline Modes
+
+The alert service supports two pipeline modes, configurable via `PIPELINE_MODE`:
+
+![Pipeline Modes Diagram](diagrams/pipeline-modes.png)
+
+```mermaid
+---
+title: "Pipeline Modes: Blocking vs Async"
+---
+flowchart LR
+    subgraph Blocking["Blocking Mode"]
+        direction TB
+        B_RMQ["RabbitMQ\n(prefetch=10)"] -->|deliver| B_Consumer["Consumer\n(single coroutine/goroutine)"]
+        B_Consumer -->|evaluate inline| B_DB[("SQLite")]
+        B_DB -->|complete| B_Ack["Ack message"]
+        B_Ack -->|next message| B_RMQ
+    end
+
+    subgraph Async["Async Mode"]
+        direction TB
+        A_RMQ["RabbitMQ\n(prefetch=10)"] -->|deliver| A_Consumer["Consumer"]
+        A_Consumer -->|enqueue\n(blocks if full)| A_Queue["Bounded Queue\n(workers × 10)"]
+        A_Consumer -->|ack immediately| A_RMQ
+        A_Queue --> A_W1["Worker 1"]
+        A_Queue --> A_W2["Worker 2"]
+        A_Queue --> A_WN["Worker N"]
+        A_W1 -->|write| A_DB[("SQLite\n(serialized writes)")]
+        A_W2 -->|write| A_DB
+        A_WN -->|write| A_DB
+    end
+```
+
+**Blocking mode:** Messages are evaluated inline before being acknowledged — sequential, strong at-least-once guarantee. **Async mode:** Messages are enqueued to a bounded queue and acked immediately; a worker pool drains the queue concurrently. The bounded queue provides backpressure: when full, the consumer blocks until a worker frees a slot, preventing unbounded memory growth.
+
 ### Load Test Results
 
-| Stack | Size | Mode | Throughput (events/s) | Avg Latency (µs) | Error Rate |
-|-------|------|------|-----------------------|-------------------|------------|
-| Python | Small (50) | blocking | 37.3 | 21,479 | 0% |
-| Python | Medium (500) | blocking | 41.8 | 23,843 | 0% |
-| Python | Large (5000) | blocking | 41.6 | 24,160 | 0% |
-| Python | Small (50) | async | 27.5 | 45,048 | 0% |
-| Python | Medium (500) | async | 37.5 | 28,778 | 0% |
-| Python | Large (5000) | async | 34.3 | 31,074 | 0% |
+| Stack | Size | Mode | Throughput (events/s) | Avg Latency (µs) | Error Rate | CPU Peak | Memory |
+|-------|------|------|-----------------------|-------------------|------------|----------|--------|
+| Python | Small (50) | blocking | 37.3 | 21,479 | 0% | 0.22% | 43.1 MiB |
+| Python | Medium (500) | blocking | 41.8 | 23,843 | 0% | 0.27% | 43.5 MiB |
+| Python | Large (5000) | blocking | 41.6 | 24,160 | 0% | 5.39% | 44.8 MiB |
+| Python | Small (50) | async | 27.5 | 45,048 | 0% | 0.30% | 43.3 MiB |
+| Python | Medium (500) | async | 37.5 | 28,778 | 0% | 0.29% | 43.9 MiB |
+| Python | Large (5000) | async | 34.3 | 31,074 | 0% | 0.31% | 45.1 MiB |
 
 ### Analysis
 
