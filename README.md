@@ -1,4 +1,4 @@
-# A2 – Integration, Persistence & Resilience
+# A3 – Reactive / Async Pipeline & Performance Analysis
 
 ## Service Definition
 
@@ -329,125 +329,25 @@ When the sensor service is unavailable, rule creation still succeeds with a warn
 | Publisher Resilience | Sensor → RabbitMQ | Publish failures logged/swallowed; auto-reconnect |
 | Consumer Reconnect | Alert ← RabbitMQ | Auto-reconnects with 5-second backoff |
 
-## Resilience & Integration Evidence
+## Observability Evidence
 
-### Go Alert Service Tests: 23/23 Passing
+<!-- TODO: Paste fresh logs/screenshots from reactive pipeline load tests -->
 
-```
-=== RUN   TestUnauthorizedWithoutToken        --- PASS (0.04s)
-=== RUN   TestUnauthorizedWithInvalidToken    --- PASS (0.01s)
-=== RUN   TestUnauthorizedMalformedHeader     --- PASS (0.01s)
-=== RUN   TestUnauthorizedResponseBody        --- PASS (0.01s)
-=== RUN   TestHealthEndpointNoAuthRequired    --- PASS (0.01s)
-=== RUN   TestListRulesEmpty                  --- PASS (0.01s)
-=== RUN   TestCreateRuleWithValidSensor       --- PASS (0.01s)
-=== RUN   TestCreateRuleWithNonexistentSensor --- PASS (0.01s)
-=== RUN   TestCreateRuleSensorUnavailableAllowsWithWarning --- PASS (3.03s)
-=== RUN   TestCreateRuleInvalidOperator       --- PASS (0.01s)
-=== RUN   TestCreateRuleMissingRequired       --- PASS (0.01s)
-=== RUN   TestGetNonexistentRule              --- PASS (0.01s)
-=== RUN   TestCreateAndFetchRule              --- PASS (0.01s)
-=== RUN   TestUpdateRule                      --- PASS (0.01s)
-=== RUN   TestUpdateRuleInvalidStatus         --- PASS (0.01s)
-=== RUN   TestDeleteRule                      --- PASS (0.01s)
-=== RUN   TestDeleteNonexistentRule           --- PASS (0.01s)
-=== RUN   TestUpdateNonexistentRule           --- PASS (0.01s)
-=== RUN   TestListRulesAfterCreate            --- PASS (0.01s)
-=== RUN   TestListAlertsEmpty                 --- PASS (0.01s)
-=== RUN   TestGetNonexistentAlert             --- PASS (0.01s)
-=== RUN   TestUpdateNonexistentAlert          --- PASS (0.01s)
-=== RUN   TestUpdateAlertInvalidStatus        --- PASS (0.02s)
-PASS
-ok  	iot-alert-service/tests	3.289s
-```
+### Structured Logs (Blocking Mode)
 
-### Go Sensor Service Tests: 28/28 Passing
+<!-- TODO: Paste structured log output showing trace_id propagation through blocking pipeline -->
 
-```
-=== RUN   TestUnauthorizedWithoutToken     --- PASS
-=== RUN   TestUnauthorizedWithInvalidToken --- PASS
-=== RUN   TestCreateSensor                 --- PASS
-=== RUN   TestCreateAndFetchSensor         --- PASS
-=== RUN   TestUpdateSensor                 --- PASS
-=== RUN   TestDeleteSensor                 --- PASS
-... (28 tests total)
-PASS
-ok  	iot-sensor-service/tests	0.201s
-```
+### Structured Logs (Reactive Mode)
 
-### End-to-End Async Flow: Sensor Update → Alert Triggered
+<!-- TODO: Paste structured log output showing trace_id propagation through reactive pipeline with concurrent workers -->
 
-Sensor `sensor-001` updated to `95.5°F` (above threshold of `80.0`). The `sensor.updated` event was published to RabbitMQ, consumed by the alert service, and two triggered alerts were created — one per matching active rule.
+### Metrics Counters
 
-**Go alert service logs:**
-```
-2026/03/09 02:50:06 INFO Connected to RabbitMQ, waiting for sensor events
-2026/03/09 02:50:06 INFO Received sensor.updated event sensor_id=sensor-001 value=95.5
-2026/03/09 02:50:06 INFO Alert triggered alert_id=alert-001 rule_id=rule-001 message="Sensor sensor-001 value 95.50 gt threshold 80.00 (rule: Living Room Temperature High)"
-2026/03/09 02:50:06 INFO Alert triggered alert_id=alert-002 rule_id=rule-004 message="Sensor sensor-001 value 95.50 gt threshold 80.00 (rule: High Temperature Alert)"
-```
+<!-- TODO: Paste /metrics endpoint output showing events_received and alerts_triggered counters -->
 
-**GET /alerts response after update:**
-```json
-{
-  "alerts": [
-    {
-      "id": "alert-001",
-      "rule_id": "rule-001",
-      "sensor_id": "sensor-001",
-      "sensor_value": 95.5,
-      "threshold": 80,
-      "message": "Sensor sensor-001 value 95.50 gt threshold 80.00 (rule: Living Room Temperature High)",
-      "status": "open",
-      "created_at": "2026-03-09T02:50:06Z",
-      "resolved_at": null
-    },
-    {
-      "id": "alert-002",
-      "rule_id": "rule-004",
-      "sensor_id": "sensor-001",
-      "sensor_value": 95.5,
-      "threshold": 80,
-      "message": "Sensor sensor-001 value 95.50 gt threshold 80.00 (rule: High Temperature Alert)",
-      "status": "resolved",
-      "created_at": "2026-03-09T02:50:06Z",
-      "resolved_at": "2026-03-09T02:50:57Z"
-    }
-  ],
-  "count": 2
-}
-```
+### Trace ID End-to-End
 
-### Circuit Breaker: Retry + Fallback (Sensor Service Down)
-
-Go sensor service stopped. `POST /rules` attempted — circuit breaker executed 3 retries with exponential backoff, then opened and returned fallback with warning. The rule was still created successfully.
-
-**Go alert service logs (retries → fallback):**
-```
-2026/03/09 02:51:10 WARN Sensor service request failed, retrying sensor_id=sensor-002 attempt=1 error="...dial tcp: lookup go-service: no such host"
-2026/03/09 02:51:11 WARN Sensor service request failed, retrying sensor_id=sensor-002 attempt=2 error="...dial tcp: lookup go-service: no such host"
-2026/03/09 02:51:13 WARN Sensor service request failed, retrying sensor_id=sensor-002 attempt=3 error="...dial tcp: lookup go-service: no such host"
-2026/03/09 02:51:13 WARN Sensor service unavailable sensor_id=sensor-002 error="...dial tcp: lookup go-service: no such host"
-2026/03/09 02:51:13 INFO Request completed method=POST path=/rules status=201 duration_ms=3148
-```
-
-**POST /rules response (circuit open — fallback with warning):**
-```json
-{
-  "id": "rule-005",
-  "sensor_id": "sensor-002",
-  "metric": "value",
-  "operator": "gt",
-  "threshold": 5,
-  "name": "Circuit Breaker Test Rule",
-  "status": "active",
-  "created_at": "2026-03-09T02:51:13Z",
-  "updated_at": "2026-03-09T02:51:13Z",
-  "warning": "Sensor service unavailable; sensor_id not validated"
-}
-```
-
-Note: `duration_ms=3148` reflects 3 × ~1s retry backoff before falling back — the service remained available throughout.
+<!-- TODO: Show a single trace_id flowing from sensor PUT → RabbitMQ event → alert evaluation → triggered alert -->
 
 ## Architecture Decision Records
 
