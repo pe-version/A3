@@ -1,7 +1,13 @@
 stack,size,mode,workers,events_sent,events_processed,wall_clock_s,throughput_per_s,avg_latency_us,error_rate_pct,cpu_peak,memory
-python,small,blocking,4,50,50,1.33,37.3,21479.2,0,0.22%,43.1MiB / 7.653GiB
-python,medium,blocking,4,500,482,11.51,41.8,23842.9,0,0.27%,43.52MiB / 7.653GiB
-python,large,blocking,4,5000,4710,113.16,41.6,24160.1,0,5.39%,44.77MiB / 7.653GiB
-python,small,async,4,50,37,1.34,27.5,45047.6,0,0.30%,43.3MiB / 7.653GiB
-python,medium,async,4,500,493,13.13,37.5,28778.3,0,0.29%,43.93MiB / 7.653GiB
-python,large,async,4,5000,4772,139.04,34.3,31074.3,0,0.31%,45.08MiB / 7.653GiB
+python,small,blocking,0,50,45,1.36,33.0,29233.0,0,0.25%,44.18MiB / 256MiB
+python,medium,blocking,0,500,458,11.28,40.6,26977.2,0,0.26%,44.06MiB / 256MiB
+python,large,blocking,0,5000,4881,130.45,37.4,30311.9,0,0.27%,44.11MiB / 256MiB
+python,small,async,4,50,50,1.00,49.8,82019.1,0,0.76%,46.51MiB / 256MiB
+python,medium,async,4,500,474,11.71,40.4,537874.4,0,0.15%,56.66MiB / 256MiB
+python,large,async,4,5000,4842,148.42,32.6,1600628.1,0,0.14%,80.42MiB / 256MiB
+go,small,blocking,4,50,57,.89,63.4,56919.2,0,50.17%,13.59MiB / 256MiB
+go,medium,blocking,4,500,513,13.56,37.8,65610.7,0,49.77%,14.25MiB / 256MiB
+go,large,blocking,4,5000,2321,153.06,15.1,86977.0,0,50.25%,14.56MiB / 256MiB
+go,small,async,4,50,51,1.50,34.0,65133.7,0,50.70%,13.48MiB / 256MiB
+go,medium,async,4,500,504,12.48,40.3,71141.7,0,50.65%,14.36MiB / 256MiB
+go,large,async,4,5000,2169,157.50,13.7,95091.1,0,50.04%,14.75MiB / 256MiB

@@ -81,10 +81,12 @@ class AlertConsumer:
             future = asyncio.ensure_future(_run())
             return rx.from_future(future)
 
-        # flat_map subscribes to at most worker_count inner Observables
-        # concurrently — this is the reactive backpressure mechanism.
+        # map each event to an inner Observable, then merge with
+        # max_concurrent to limit in-flight evaluations — this is the
+        # reactive backpressure mechanism.
         pipeline = self._subject.pipe(
-            ops.flat_map(evaluate_as_observable, max_concurrent=self.worker_count),
+            ops.map(evaluate_as_observable),
+            ops.merge(max_concurrent=self.worker_count),
         )
 
         disposable = pipeline.subscribe(

@@ -61,10 +61,10 @@ func (c *AlertConsumer) startReactivePipeline() {
 		close(itemCh)
 	}()
 
-	observable := rxgo.FromChannel(itemCh).Pipe(
-		// FlatMap fans out each event to a pool of goroutines.
-		// WithPool limits concurrency — this is the reactive backpressure.
-		rxgo.FlatMap(func(item rxgo.Item) rxgo.Observable {
+	// FlatMap fans out each event to a pool of goroutines.
+	// WithPool limits concurrency — this is the reactive backpressure.
+	observable := rxgo.FromChannel(itemCh).FlatMap(
+		func(item rxgo.Item) rxgo.Observable {
 			event := item.V.(SensorEvent)
 			return rxgo.Defer([]rxgo.Producer{func(_ context.Context, next chan<- rxgo.Item) {
 				func() {
@@ -77,7 +77,7 @@ func (c *AlertConsumer) startReactivePipeline() {
 				}()
 				next <- rxgo.Of(event)
 			}})
-		}, rxgo.WithPool(c.workerCount)),
+		}, rxgo.WithPool(c.workerCount),
 	)
 
 	// Subscribe in a background goroutine to drain the observable.
